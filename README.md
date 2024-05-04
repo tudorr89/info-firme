@@ -37,14 +37,14 @@ php artisan key:generate
 ### Nota:
 Proiectul vine cu horizon instalat. Joburile ruleaza mai bine sub el + exista dashboard pe url-ul ```/horizon``` pentru a vedea progresul importului in timp real.
 
-Rulam horizon
+Rulare horizon
 ```php
 php artisan horizon
 ```
 
-Descarcam CSV-urile de pe data.gov.ro de [aici](https://data.gov.ro/dataset/firme-inregistrate-la-registrul-comertului-pana-la-data-de-07-aprilie-2024)(la data scrierii acestea erau cele mai recente, CSV-urile se actualizeaza o data la 4 luni) si le copiem in directorul proiectului
+Se descarca CSV-urile de pe data.gov.ro de [aici](https://data.gov.ro/dataset/firme-inregistrate-la-registrul-comertului-pana-la-data-de-07-aprilie-2024)(la data scrierii acestea erau cele mai recente, CSV-urile se actualizeaza o data la 4 luni) si se copiaza in directorul proiectului.
 
-Import Nomenclatorul
+Import Nomenclator
 ```php
 php artisan import:nomenclator 5nomenclator_stari_firma.csv
 ```
