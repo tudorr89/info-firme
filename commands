@@ -1,0 +1,8 @@
+docker run --rm app:latest php artisan import:companies 1firme_neradiate_fara_sediu_2024-01-07.csv
+docker run --rm app:latest php artisan import:companies 2firme_radiate_fara_sediu_2024-01-07.csv
+docker run --rm app:latest php artisan import:companies 3firme_neradiate_cu_sediu_2024-01-07.csv
+docker run --rm app:latest php artisan import:companies 4firme_radiate_cu_sediu_2024-01-07.csv
+
+docker run --rm app:latest php artisan migrate
+
+docker build -t app:latest -f FrankenPHP.Dockerfile .
