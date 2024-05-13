@@ -21,9 +21,12 @@ git clone git@github.com:tudorr89/info-firme.git
 ```
 Creare .env
 ```sh
-cp .env.example .env
+cd info-firme/ && cp .env.example .env
 ```
-
+Instalare packete
+```sh
+composer install
+```
 Se editeaza detaliile conexiunilor Redis si Mariadb in ```.env``` si se ruleaza migrarile
 
 ```php
