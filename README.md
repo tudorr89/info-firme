@@ -38,13 +38,17 @@ php artisan key:generate
 ```
 
 ### Nota:
-Proiectul vine cu horizon instalat. Joburile ruleaza mai bine sub el + exista dashboard pe url-ul ```/horizon``` pentru a vedea progresul importului in timp real.
+Proiectul vine cu horizon instalat. Joburile ruleaza mai bine sub el si exista dashboard pe url-ul ```/horizon``` pentru a vedea progresul importului in timp real.
 
 Rulare horizon
 ```php
 php artisan horizon
 ```
 
+### UPDATE 2024-06-19: Importul din datagov se face automat o data la 4 luni!!
+Pentru a dezactiva aceasta functionalitate, trebuie comentate ambele comenzi (import:auto si download:csv) din fisierul app/Console/Kernel.php
+
+### Import Manual:
 Se descarca CSV-urile de pe data.gov.ro de [aici](https://data.gov.ro/dataset/firme-inregistrate-la-registrul-comertului-pana-la-data-de-07-aprilie-2024)(la data scrierii acestea erau cele mai recente, CSV-urile se actualizeaza o data la 4 luni) si se copiaza in directorul proiectului.
 
 Import Nomenclator
@@ -61,7 +65,7 @@ Proiectul vine cu laravel octane si frankenphp ca server web.
 
 Build imagine:
 ```sh
-docker build -t <image-name>:<tag> -f FrankenPHP.Dockerfile .
+docker build -t <image-name>:<tag> -f FrankenPHP.Alpine.Dockerfile .
 ```
 (inlocuiti image-name si tag cu ce vreti)
 
