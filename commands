@@ -5,4 +5,4 @@ docker run --rm app:latest php artisan import:companies 4firme_radiate_cu_sediu_
 
 docker run --rm app:latest php artisan migrate
 
-docker build -t app:latest -f FrankenPHP.Dockerfile .
+docker build -t app:latest -f FrankenPHP.Alpine.Dockerfile .
