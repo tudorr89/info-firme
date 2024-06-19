@@ -36,14 +36,10 @@ class AutoCSVImportCommand extends Command
         }
 
         foreach($files as $file) {
-            if(str_contains($file,'nomeclator')) {
+            if(str_contains($file, 'nomeclator')) {
                 dispatch(new NomenclatorImportJob(storage_path('app/'.$file)));
-
-                Storage::delete($file);
             } else {
                 dispatch(new ProcessCSVJob(storage_path('app/'.$file)));
-
-                Storage::delete($file);
             }
         }
 
