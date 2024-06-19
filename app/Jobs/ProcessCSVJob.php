@@ -71,5 +71,8 @@ class ProcessCSVJob implements ShouldQueue
 
         // Close the file
         fclose($fileStream);
+
+        // Delete the file after import
+        unlink($this->file);
     }
 }

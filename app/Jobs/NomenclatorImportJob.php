@@ -54,5 +54,8 @@ class NomenclatorImportJob implements ShouldQueue
         }
 
         fclose($fileStream);
+
+        // Delete the file after import
+        unlink($this->file);
     }
 }
