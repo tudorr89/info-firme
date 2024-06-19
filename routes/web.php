@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\LastUpdateService;
 use Illuminate\Support\Facades\Route;
 
 Route::fallback(function () {

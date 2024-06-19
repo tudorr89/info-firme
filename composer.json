@@ -13,7 +13,8 @@
         "laravel/octane": "^2.3",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
-        "predis/predis": "^2.2"
+        "predis/predis": "^2.2",
+        "spatie/laravel-settings": "^3.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -39,8 +40,7 @@
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi",
-            "@php artisan filament:upgrade"
+            "@php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
