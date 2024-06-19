@@ -19,7 +19,7 @@ WORKDIR ${ROOT}
 
 RUN npm config set update-notifier false && npm set progress=false
 
-COPY package*.json ./
+COPY --link package*.json ./
 
 RUN if [ -f $ROOT/package-lock.json ]; \
     then \
@@ -28,7 +28,7 @@ RUN if [ -f $ROOT/package-lock.json ]; \
     npm install --loglevel=error --no-audit; \
     fi
 
-COPY . .
+COPY --link . .
 
 RUN npm run build
 
@@ -36,7 +36,7 @@ RUN npm run build
 
 FROM composer:${COMPOSER_VERSION} AS vendor
 
-FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}
+FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}-alpine
 
 LABEL maintainer="SMortexa <seyed.me720@gmail.com>"
 LABEL org.opencontainers.image.title="Laravel Octane Dockerfile"
@@ -49,8 +49,7 @@ ARG WWWGROUP=1000
 ARG TZ=UTC
 ARG APP_DIR=/var/www/html
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    TERM=xterm-color \
+ENV TERM=xterm-color \
     WITH_HORIZON=false \
     WITH_SCHEDULER=false \
     OCTANE_SERVER=frankenphp \
@@ -63,17 +62,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR ${ROOT}
 
-SHELL ["/bin/bash", "-eou", "pipefail", "-c"]
+SHELL ["/bin/sh", "-eou", "pipefail", "-c"]
 
 RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
     && echo ${TZ} > /etc/timezone
 
-ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
-
-RUN apt-get update; \
-    apt-get upgrade -yqq; \
-    apt-get install -yqq --no-install-recommends --show-progress \
-    apt-utils \
+RUN apk update; \
+    apk upgrade; \
+    apk add --no-cache \
     curl \
     wget \
     nano \
@@ -82,7 +78,7 @@ RUN apt-get update; \
     ca-certificates \
     supervisor \
     libsodium-dev \
-    # Install PHP extensions
+    # Install PHP extensions (included with dunglas/frankenphp)
     && install-php-extensions \
     bz2 \
     pcntl \
@@ -102,31 +98,37 @@ RUN apt-get update; \
     memcached \
     igbinary \
     ldap \
-    && apt-get -y autoremove \
-    && apt-get clean \
+    swoole \
     && docker-php-source delete \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm /var/log/lastlog /var/log/faillog
+    && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
 
-RUN wget -q "https://github.com/aptible/supercronic/releases/download/v0.2.29/supercronic-linux-amd64" \
+RUN arch="$(apk --print-arch)" \
+    && case "$arch" in \
+    armhf) _cronic_fname='supercronic-linux-arm' ;; \
+    aarch64) _cronic_fname='supercronic-linux-arm64' ;; \
+    x86_64) _cronic_fname='supercronic-linux-amd64' ;; \
+    x86) _cronic_fname='supercronic-linux-386' ;; \
+    *) echo >&2 "error: unsupported architecture: $arch"; exit 1 ;; \
+    esac \
+    && wget -q "https://github.com/aptible/supercronic/releases/download/v0.2.29/${_cronic_fname}" \
     -O /usr/bin/supercronic \
     && chmod +x /usr/bin/supercronic \
     && mkdir -p /etc/supercronic \
     && echo "*/1 * * * * php ${ROOT}/artisan schedule:run --no-interaction" > /etc/supercronic/laravel
 
-RUN userdel --remove --force www-data \
-    && groupadd --force -g ${WWWGROUP} ${USER} \
-    && useradd -ms /bin/bash --no-log-init --no-user-group -g ${WWWGROUP} -u ${WWWUSER} ${USER}
+RUN addgroup -g ${WWWGROUP} ${USER} \
+    && adduser -D -h ${ROOT} -G ${USER} -u ${WWWUSER} -s /bin/sh ${USER}
 
-RUN chown -R ${USER}:${USER} ${ROOT} /var/{log,run} \
-    && chmod -R a+rw ${ROOT} /var/{log,run}
+RUN mkdir -p /var/log/supervisor /var/run/supervisor \
+    && chown -R ${USER}:${USER} ${ROOT} /var/log /var/run \
+    && chmod -R a+rw ${ROOT} /var/log /var/run
 
 RUN cp ${PHP_INI_DIR}/php.ini-production ${PHP_INI_DIR}/php.ini
 
 USER ${USER}
 
-COPY --chown=${USER}:${USER} --from=vendor /usr/bin/composer /usr/bin/composer
-COPY --chown=${USER}:${USER} composer.json composer.lock ./
+COPY --link --chown=${USER}:${USER} --from=vendor /usr/bin/composer /usr/bin/composer
+COPY --link --chown=${USER}:${USER} composer.json composer.lock ./
 
 RUN composer install \
     --no-dev \
@@ -136,30 +138,32 @@ RUN composer install \
     --no-scripts \
     --audit
 
-COPY --chown=${USER}:${USER} . .
-COPY --chown=${USER}:${USER} --from=build ${ROOT}/public public
+COPY --link --chown=${USER}:${USER} . .
+COPY --link --chown=${USER}:${USER} --from=build ${ROOT}/public public
 
 RUN mkdir -p \
-    storage/framework/{sessions,views,cache,testing} \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/framework/cache \
+    storage/framework/testing \
     storage/logs \
     bootstrap/cache && chmod -R a+rw storage
 
-COPY --chown=${USER}:${USER} deployment/supervisord.conf /etc/supervisor/
-COPY --chown=${USER}:${USER} deployment/octane/FrankenPHP/supervisord.frankenphp.conf /etc/supervisor/conf.d/
-COPY --chown=${USER}:${USER} deployment/supervisord.*.conf /etc/supervisor/conf.d/
-COPY --chown=${USER}:${USER} deployment/start-container /usr/local/bin/start-container
-COPY --chown=${USER}:${USER} deployment/php.ini ${PHP_INI_DIR}/conf.d/99-octane.ini
+COPY --link --chown=${USER}:${USER} deployment/supervisord.conf /etc/supervisor/
+COPY --link --chown=${USER}:${USER} deployment/octane/FrankenPHP/supervisord.frankenphp.conf /etc/supervisor/conf.d/
+COPY --link --chown=${USER}:${USER} deployment/supervisord.*.conf /etc/supervisor/conf.d/
+COPY --link --chown=${USER}:${USER} deployment/start-container /usr/local/bin/start-container
+COPY --link --chown=${USER}:${USER} deployment/php.ini ${PHP_INI_DIR}/conf.d/99-octane.ini
 
 # FrankenPHP embedded PHP configuration
-COPY --chown=${USER}:${USER} deployment/php.ini /lib/php.ini
+COPY --link --chown=${USER}:${USER} deployment/php.ini /lib/php.ini
 
 RUN composer install \
     --classmap-authoritative \
     --no-interaction \
     --no-ansi \
     --no-dev \
-    && composer clear-cache \
-    && php artisan storage:link
+    && composer clear-cache
 
 RUN chmod +x /usr/local/bin/start-container
 
