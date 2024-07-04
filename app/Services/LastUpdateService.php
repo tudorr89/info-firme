@@ -9,7 +9,7 @@ class LastUpdateService
 {
     public static function needsUpdate()
     {
-        return Carbon::parse(app(GeneralSettings::class)->lastUpdate)->diffInMonths(Carbon::now()) >= 4;
+        return Carbon::parse(app(GeneralSettings::class)->lastUpdate)->diffInMonths(Carbon::now()) >= 3;
     }
 
     public static function setDate()
