@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CSVDownloadService
 {
-    public static function download()
+    public static function download(): void
     {
         $months = [
           1 =>  'ianuarie',
@@ -20,7 +20,7 @@ class CSVDownloadService
 
         $now = Carbon::now();
 
-        if(!in_array($now->month,array_keys($months))) {
+        if(!in_array($now->month, array_keys($months))) {
             return;
         }
 
