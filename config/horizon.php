@@ -206,7 +206,7 @@ return [
 
         'local' => [
             'supervisor-1' => [
-                'maxProcesses' => 6,
+                'maxProcesses' => 10,
             ],
         ],
     ],
