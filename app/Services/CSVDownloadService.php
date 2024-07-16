@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CSVDownloadService
 {
-    public static function download()
+    public static function download(): void
     {
         $months = [
           1 =>  'ianuarie',
