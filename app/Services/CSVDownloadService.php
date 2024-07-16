@@ -38,7 +38,7 @@ class CSVDownloadService
 
         foreach($info['result']['resources'] as $resource) {
             if($resource['format'] == 'CSV') {
-                $csv = HTTP::timeout(300)->get($resource['url']);
+                $csv = HTTP::timeout(900)->get($resource['url']);
                 $csv = $csv->body();
                 Storage::put('csv/'.basename($resource['url']), $csv);
             }
