@@ -18,7 +18,7 @@ class ProcessCSVJob implements ShouldQueue
      * Create a new job instance.
      */
 
-    public $timeout = 1200;
+    public $timeout = 2400;
 
     public function __construct(private string $file)
     {
