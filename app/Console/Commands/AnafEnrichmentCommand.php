@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Processors\AnafProcessor;
 use App\Services\AnafEnrichmentService;
 use Illuminate\Console\Command;
 
