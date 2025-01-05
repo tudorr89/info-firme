@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use \Itrack\Anaf\Client as AnafClient;
+use App\Processors\AnafProcessor;
 use App\Models\Company;
 use App\Jobs\AnafEnrichmentJob;
 
@@ -18,12 +18,11 @@ class AnafEnrichmentService
     public function enrich()
     {
         Company::whereRelation('info', 'registrationDate', null)->chunkById($this->batchSize, function ($companies) {
-            $anaf = new AnafClient();
+            $cuis = [];
             foreach ($companies as $company) {
-                $date = date('Y-m-d');
-                $anaf->addCif($company->cui, $date);
+                $cuis[] = $company->cui;
             }
-            $results = $anaf->get();
+            $results = AnafProcessor::getCompanyInfo($cuis);
             if ($results) {
                 $this->updateCompaniesFromAnafResults($companies, $results);
             }
@@ -35,7 +34,6 @@ class AnafEnrichmentService
     {
         $companyCuiMap = $companies->keyBy('cui');
         foreach ($results as $result) {
-            $result = $result->getParserData();
             $cui = $result['date_generale']['cui'];
             if ($companyCuiMap->has($cui)) {
                 $company = Company::where('cui', $cui)->first();
