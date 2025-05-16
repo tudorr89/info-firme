@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class AnafProcessor
 {
-    const url = 'https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva';
+    const url = 'https://webservicesp.anaf.ro/PlatitorTvaRest/api/v9/ws/tva';
 
     public static function getCompanyInfo($data)
     {
