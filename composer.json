@@ -7,10 +7,10 @@
     "require": {
         "php": "^8.1",
         "guzzlehttp/guzzle": "^7.2",
-        "laravel/framework": "^10.10",
+        "laravel/framework": "^12.0",
         "laravel/horizon": "^5.24",
         "laravel/octane": "^2.3",
-        "laravel/sanctum": "^3.3",
+        "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.8",
         "predis/predis": "^2.2",
         "sentry/sentry-laravel": "^4.13",
@@ -21,8 +21,8 @@
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.18",
         "mockery/mockery": "^1.4.4",
-        "nunomaduro/collision": "^7.0",
-        "phpunit/phpunit": "^10.1",
+        "nunomaduro/collision": "^8.1",
+        "phpunit/phpunit": "^11.0",
         "spatie/laravel-ignition": "^2.0"
     },
     "autoload": {
