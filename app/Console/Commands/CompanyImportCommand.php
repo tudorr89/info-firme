@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Jobs\ProcessCSVJob;
+use App\Jobs\CompanyImportJob;
 
 class CompanyImportCommand extends Command
 {
@@ -27,7 +27,7 @@ class CompanyImportCommand extends Command
     public function handle()
     {
         $this->output->title('Starting import');
-        dispatch(new ProcessCSVJob($this->argument('file')));
+        dispatch(new CompanyImportJob($this->argument('file')));
         $this->output->success('Import successful');
     }
 }

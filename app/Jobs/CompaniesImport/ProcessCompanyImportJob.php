@@ -13,8 +13,9 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use Laravel\Horizon\Contracts\Silenced;
 
-class ProcessCompanyImportJob implements ShouldQueue
+class ProcessCompanyImportJob implements ShouldQueue, Silenced
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -40,19 +41,12 @@ class ProcessCompanyImportJob implements ShouldQueue
                 'cui'       => $this->dataLine[$this->fieldMap['CUI']],
                 'reg_com'   => $this->dataLine[$this->fieldMap['COD_INMATRICULARE']],
                 'euid'      => $this->dataLine[$this->fieldMap['EUID']],
+                'type'      => $this->dataLine[$this->fieldMap['FORMA_JURIDICA']],
+                'registration_date' => date('Y-m-d h:i:s', strtotime($this->dataLine[$this->fieldMap['DATA_INMATRICULARE']])),
             ]
         );
 
         try {
-            Info::updateOrCreate(
-                [
-                    'company_id'    => $company->id,
-                ],
-                [
-                    'company_id'    => $company->id,
-                    'address'       => $this->dataLine[$this->fieldMap['ADRESA_COMPLETA']],
-                ]
-            );
             Address::updateOrCreate(
                 [
                     'company_id'    => $company->id,
@@ -73,18 +67,6 @@ class ProcessCompanyImportJob implements ShouldQueue
                     'additional'    => $this->dataLine[$this->fieldMap['ADR_COMPLETARE']],
                 ]
             );
-            $statuses = explode(',', $this->dataLine[$this->fieldMap['STARE_FIRMA']]);
-            foreach($statuses as $status) {
-                Status::updateOrCreate(
-                    [
-                        'company_id'    => $company->id,
-                    ],
-                    [
-                        'company_id'    => $company->id,
-                        'status'        => $status,
-                    ]
-                );
-            }
         } catch (Exception $e) {
             Log::error($e->getMessage());
         }

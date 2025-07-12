@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Company extends Model
 {
@@ -23,18 +26,23 @@ class Company extends Model
         'id',
     ];
 
-    public function address()
+    public function address(): HasOne
     {
         return $this->hasOne(Address::class);
     }
 
-    public function info()
+    public function info(): HasOne
     {
         return $this->hasOne(Info::class);
     }
 
-    public function status()
+    public function status(): HasOne
     {
-        return $this->hasMany(Status::class);
+        return $this->hasOne(Status::class, 'registration', 'reg_com');
+    }
+
+    public function caen(): HasOne
+    {
+        return $this->hasOne(CaenCompany::class, 'registration', 'reg_com');
     }
 }

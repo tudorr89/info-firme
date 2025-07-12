@@ -35,7 +35,7 @@ class NomenclatorImportJob implements ShouldQueue
         $fileStream = fopen($this->file, 'r');
 
         $skipHeader = true;
-        while (($line = fgetcsv($fileStream, 1000, '|')) !== false) {
+        while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
             if ($skipHeader) {
                 // Skip the header
                 $skipHeader = false;
