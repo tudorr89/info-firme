@@ -2,7 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Jobs\CompaniesImport\ProcessStatusImportJob;
+use App\Jobs\Batches\ProcessStatusBatchImportJob;
+use App\Jobs\Batches\ProcessStatusImportJob;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -11,45 +12,46 @@ class StatusImportJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * Create a new job instance.
-     */
+    private const BATCH_SIZE = 1000; // Adjust based on your system
+
     public function __construct(private string $file)
     {
-        //
+        // Set longer timeout for large files
+        $this->timeout = 3600; // 1 hour
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
-        //COD_INMATRICULARE^COD
         $fieldMap = [
-            'COD_INMATRICULARE'         => 0,
-            'COD'                       => 1,
+            'COD_INMATRICULARE' => 0,
+            'COD' => 1,
         ];
 
-        // Open the file for reading
         $fileStream = fopen($this->file, 'r');
-
+        $batch = [];
         $skipHeader = true;
+        $batchCount = 0;
+
         while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
             if ($skipHeader) {
-                // Skip the header
                 $skipHeader = false;
                 continue;
             }
-            try {
-                dispatch(new ProcessStatusImportJob($line, $fieldMap));
-            } catch (\Exception $e) {
-                Log::error('Error processing Status line: ' . json_encode($line));
+
+            $batch[] = $line;
+
+            if (count($batch) >= self::BATCH_SIZE) {
+                dispatch(new ProcessStatusBatchImportJob($batch, $fieldMap, ++$batchCount));
+                $batch = [];
             }
         }
 
-        fclose($fileStream);
+        // Process remaining records
+        if (!empty($batch)) {
+            dispatch(new ProcessStatusBatchImportJob($batch, $fieldMap, ++$batchCount));
+        }
 
-        // Delete the file after import
+        fclose($fileStream);
         unlink($this->file);
     }
 }
