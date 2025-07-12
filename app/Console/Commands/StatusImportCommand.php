@@ -19,7 +19,7 @@ class StatusImportCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Imports Companies status from a CSV file.';
+    protected $description = 'Imports Companies status from a CSV file. od_stare_firma.csv';
 
     /**
      * Execute the console command.

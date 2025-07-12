@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -18,6 +17,8 @@ class Company extends Model
         'reg_com',
         'euid',
         'status',
+        'registration_date',
+        'type'
     ];
 
     protected $hidden = [
@@ -41,8 +42,8 @@ class Company extends Model
         return $this->hasOne(Status::class, 'registration', 'reg_com');
     }
 
-    public function caen(): HasOne
+    public function caen(): HasMany
     {
-        return $this->hasOne(CaenCompany::class, 'registration', 'reg_com');
+        return $this->HasMany(CaenCompany::class, 'registration', 'reg_com');
     }
 }

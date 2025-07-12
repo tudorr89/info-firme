@@ -12,14 +12,14 @@ class CaenDefinitionImportCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'import:caen-defintion {file}';
+    protected $signature = 'import:caen-definition {file}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Imports CAEN definitions from a CSV file.';
+    protected $description = 'Imports CAEN definitions from a CSV file. n_caen.csv';
 
     /**
      * Execute the console command.
