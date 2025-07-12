@@ -2,16 +2,14 @@
 
 namespace App\Jobs;
 
-use App\Models\Nomenclator;
-use Illuminate\Bus\Queueable;
+use App\Jobs\CompaniesImport\ProcessCaenCompanyImportJob;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
-class NomenclatorImportJob implements ShouldQueue
+class CaenCompanyImportJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Queueable;
 
     /**
      * Create a new job instance.
@@ -26,9 +24,11 @@ class NomenclatorImportJob implements ShouldQueue
      */
     public function handle(): void
     {
+        //COD_INMATRICULARE^COD_CAEN_AUTORIZAT^VER_CAEN_AUTORIZAT
         $fieldMap = [
-            'COD'       => 0,
-            'DENUMIRE'  => 1,
+            'COD_INMATRICULARE'         => 0,
+            'COD_CAEN_AUTORIZAT'        => 1,
+            'VER_CAEN_AUTORIZAT'        => 2,
         ];
 
         // Open the file for reading
@@ -41,16 +41,11 @@ class NomenclatorImportJob implements ShouldQueue
                 $skipHeader = false;
                 continue;
             }
-            //$line = str_getcsv($line[0],'|');
-            Nomenclator::firstOrCreate(
-                [
-                    'code'          => $line[$fieldMap['COD']],
-                ],
-                [
-                    'code'          => $line[$fieldMap['COD']],
-                    'description'   => $line[$fieldMap['DENUMIRE']],
-                ]
-            );
+            try {
+                dispatch(new ProcessCaenCompanyImportJob($line, $fieldMap));
+            } catch (\Exception $e) {
+                Log::error('Error processing CAEN line: ' . json_encode($line));
+            }
         }
 
         fclose($fileStream);

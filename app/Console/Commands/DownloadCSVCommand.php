@@ -12,7 +12,7 @@ class DownloadCSVCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'download:csv';
+    protected $signature = 'download:csv {url}';
 
     /**
      * The console command description.
@@ -26,6 +26,6 @@ class DownloadCSVCommand extends Command
      */
     public function handle()
     {
-        CSVDownloadService::download();
+        CSVDownloadService::download($this->argument('url'));
     }
 }

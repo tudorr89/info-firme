@@ -8,9 +8,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use App\Jobs\CompaniesImport\ProcessCompanyImportJob;
-use Log;
+use Illuminate\Support\Facades\Log;
 
-class ProcessCSVJob implements ShouldQueue
+class CompanyImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -30,16 +30,18 @@ class ProcessCSVJob implements ShouldQueue
      */
     public function handle(): void
     {
+        //DENUMIRE^CUI^COD_INMATRICULARE^DATA_INMATRICULARE^EUID^FORMA_JURIDICA^ADR_TARA^ADR_JUDET^ADR_LOCALITATE^LOCALITATE^ADR_DEN_STRADA
+        //ADR_NR_STRADA^ADR_BLOC^ADR_SCARA^ADR_ETAJ^ADR_APARTAMENT^ADR_COD_POSTAL^ADR_SECTOR^ADR_COMPLETARE
         $fieldMap = [
             'DENUMIRE' => 0,
             'CUI' => 1,
             'COD_INMATRICULARE' => 2,
-            'EUID' => 3,
-            'STARE_FIRMA' => 4,
-            'ADRESA_COMPLETA' => 5,
+            'DATA_INMATRICULARE' => 3,
+            'EUID' => 4,
+            'FORMA_JURIDICA' => 5,
             'ADR_TARA' => 6,
-            'ADR_LOCALITATE' => 7,
-            'ADR_JUDET' => 8,
+            'ADR_JUDET' => 7,
+            'ADR_LOCALITATE' => 8,
             'ADR_DEN_STRADA' => 9,
             'ADR_DEN_NR_STRADA' => 10,
             'ADR_BLOC' => 11,

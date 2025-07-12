@@ -2,24 +2,24 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\CaenCompanyImportJob;
 use Illuminate\Console\Command;
-use App\Jobs\CompanyImportJob;
 
-class CompanyImportCommand extends Command
+class CaenCompanyImportCommand extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'import:companies {file}';
+    protected $signature = 'import:caen-company {file}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Import the companies from a CSV file.';
+    protected $description = 'Imports CAEN companies links from a CSV file.';
 
     /**
      * Execute the console command.
@@ -27,7 +27,7 @@ class CompanyImportCommand extends Command
     public function handle()
     {
         $this->output->title('Starting import');
-        dispatch(new CompanyImportJob($this->argument('file')));
+        dispatch(new CaenCompanyImportJob($this->argument('file')));
         $this->output->success('Import successful');
     }
 }

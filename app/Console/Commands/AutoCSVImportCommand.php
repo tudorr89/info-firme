@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use App\Jobs\NomenclatorImportJob;
-use App\Jobs\ProcessCSVJob;
+use App\Jobs\CompanyImportJob;
 use App\Services\LastUpdateService;
 
 class AutoCSVImportCommand extends Command
@@ -39,7 +39,7 @@ class AutoCSVImportCommand extends Command
             if(str_contains($file, 'nomeclator')) {
                 dispatch(new NomenclatorImportJob(storage_path('app/'.$file)));
             } else {
-                dispatch(new ProcessCSVJob(storage_path('app/'.$file)));
+                dispatch(new CompanyImportJob(storage_path('app/'.$file)));
             }
         }
 

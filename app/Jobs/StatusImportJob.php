@@ -2,16 +2,14 @@
 
 namespace App\Jobs;
 
-use App\Models\Nomenclator;
-use Illuminate\Bus\Queueable;
+use App\Jobs\CompaniesImport\ProcessStatusImportJob;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
-class NomenclatorImportJob implements ShouldQueue
+class StatusImportJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Queueable;
 
     /**
      * Create a new job instance.
@@ -26,9 +24,10 @@ class NomenclatorImportJob implements ShouldQueue
      */
     public function handle(): void
     {
+        //COD_INMATRICULARE^COD
         $fieldMap = [
-            'COD'       => 0,
-            'DENUMIRE'  => 1,
+            'COD_INMATRICULARE'         => 0,
+            'COD'                       => 1,
         ];
 
         // Open the file for reading
@@ -41,16 +40,11 @@ class NomenclatorImportJob implements ShouldQueue
                 $skipHeader = false;
                 continue;
             }
-            //$line = str_getcsv($line[0],'|');
-            Nomenclator::firstOrCreate(
-                [
-                    'code'          => $line[$fieldMap['COD']],
-                ],
-                [
-                    'code'          => $line[$fieldMap['COD']],
-                    'description'   => $line[$fieldMap['DENUMIRE']],
-                ]
-            );
+            try {
+                dispatch(new ProcessStatusImportJob($line, $fieldMap));
+            } catch (\Exception $e) {
+                Log::error('Error processing Status line: ' . json_encode($line));
+            }
         }
 
         fclose($fileStream);

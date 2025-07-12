@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CSVDownloadService
 {
-    public static function download(): void
+    public static function download($url): void
     {
         $months = [
           1 =>  'ianuarie',
@@ -28,7 +28,7 @@ class CSVDownloadService
             return;
         }
 
-        $request = HTTP::get('https://data.gov.ro/api/3/action/package_show?id=firme-inregistrate-la-registrul-comertului-pana-la-data-de-07-'.$months[$now->month].'-'.$now->year);
+        $request = HTTP::get($url);
 
         $info = $request->json();
 

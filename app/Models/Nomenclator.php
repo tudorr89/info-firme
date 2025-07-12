@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Nomenclator extends Model
 {
@@ -19,7 +20,7 @@ class Nomenclator extends Model
         'updated_at',
         'id',
     ];
-    public function status()
+    public function status(): HasOne
     {
         return $this->hasOne(Status::class);
     }

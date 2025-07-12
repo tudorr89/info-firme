@@ -2,24 +2,24 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\StatusImportJob;
 use Illuminate\Console\Command;
-use App\Jobs\CompanyImportJob;
 
-class CompanyImportCommand extends Command
+class StatusImportCommand extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'import:companies {file}';
+    protected $signature = 'import:status {file}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Import the companies from a CSV file.';
+    protected $description = 'Imports Companies status from a CSV file.';
 
     /**
      * Execute the console command.
@@ -27,7 +27,7 @@ class CompanyImportCommand extends Command
     public function handle()
     {
         $this->output->title('Starting import');
-        dispatch(new CompanyImportJob($this->argument('file')));
+        dispatch(new StatusImportJob($this->argument('file')));
         $this->output->success('Import successful');
     }
 }
