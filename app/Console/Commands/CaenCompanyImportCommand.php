@@ -19,7 +19,7 @@ class CaenCompanyImportCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Imports CAEN companies links from a CSV file.';
+    protected $description = 'Imports CAEN companies links from a CSV file. od_caen_autorizat.csv';
 
     /**
      * Execute the console command.

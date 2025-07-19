@@ -19,7 +19,7 @@ class NomenclatorImportCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Import the nomenclator from a CSV file.';
+    protected $description = 'Import the nomenclator from a CSV file. n_stare_firma.csv';
 
     /**
      * Execute the console command.

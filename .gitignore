@@ -5,9 +5,10 @@
 /public/storage
 /storage/*.key
 /vendor
-.env
+.env.original
 .env.backup
 .env.production
+.env
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
@@ -21,3 +22,4 @@ yarn-error.log
 /caddy
 frankenphp
 frankenphp-worker.php
+build-app.sh

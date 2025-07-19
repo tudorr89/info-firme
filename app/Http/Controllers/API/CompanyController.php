@@ -14,13 +14,13 @@ class CompanyController extends Controller
     {
         if($request->cui) {
             $company = Cache::remember($request->cui, 60 * 60 * 24, function () use ($request) {
-                return Company::with(['address','info','status.details','caen.details'])->where('cui', $request->cui)->firstorFail();
+                return Company::with(['address','info','status.details','caen.details','caen'])->where('cui', $request->cui)->firstorFail();
             });
 
             return response()->json($company);
         }
         $company = Cache::remember($request->company, 60 * 60 * 24, function () use ($request) {
-            return Company::with(['address','info','status.details','caen.details'])->where('name', 'LIKE', $request->company.'%')->paginate();
+            return Company::with(['address','info','status.details','caen.details','caen'])->where('name', 'LIKE', $request->company.'%')->paginate();
         });
 
         return response()->json($company);

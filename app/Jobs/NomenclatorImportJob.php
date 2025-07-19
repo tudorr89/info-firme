@@ -41,7 +41,6 @@ class NomenclatorImportJob implements ShouldQueue
                 $skipHeader = false;
                 continue;
             }
-            //$line = str_getcsv($line[0],'|');
             Nomenclator::firstOrCreate(
                 [
                     'code'          => $line[$fieldMap['COD']],
