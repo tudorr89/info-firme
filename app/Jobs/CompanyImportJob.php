@@ -2,23 +2,20 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Batches\ProcessCompanyBatchImportJobUpsert;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Jobs\CompaniesImport\ProcessCompanyImportJob;
 use Illuminate\Support\Facades\Log;
 
 class CompanyImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * Create a new job instance.
-     */
-
-    public $timeout = 2400;
+    public int $timeout = 2400;
+    private const BATCH_SIZE = 1000; // Process 1000 records per batch
 
     public function __construct(private string $file)
     {
@@ -30,8 +27,6 @@ class CompanyImportJob implements ShouldQueue
      */
     public function handle(): void
     {
-        //DENUMIRE^CUI^COD_INMATRICULARE^DATA_INMATRICULARE^EUID^FORMA_JURIDICA^ADR_TARA^ADR_JUDET^ADR_LOCALITATE^LOCALITATE^ADR_DEN_STRADA
-        //ADR_NR_STRADA^ADR_BLOC^ADR_SCARA^ADR_ETAJ^ADR_APARTAMENT^ADR_COD_POSTAL^ADR_SECTOR^ADR_COMPLETARE
         $fieldMap = [
             'DENUMIRE' => 0,
             'CUI' => 1,
@@ -53,28 +48,48 @@ class CompanyImportJob implements ShouldQueue
             'ADR_COMPLETARE' => 17,
         ];
 
-        // Open the file for reading
         $fileStream = fopen($this->file, 'r');
-
+        $batch = [];
+        $batchCount = 0;
         $skipHeader = true;
+
+        // Track unique identifiers to avoid duplicates within the file
+        $seenRegComs = [];
+        $seenEuids = [];
+
         while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
             if ($skipHeader) {
-                // Skip the header
                 $skipHeader = false;
                 continue;
             }
-            try {
-                // For each line, we dispatch a job to process the line
-                dispatch(new ProcessCompanyImportJob($line, $fieldMap));
-            } catch (\Exception $e) {
-                Log::error('Error processing line: ' . json_encode($line));
+
+            $regCom = $line[$fieldMap['COD_INMATRICULARE']];
+            $euid = $line[$fieldMap['EUID']];
+
+            // Skip duplicates within the same file
+            if (isset($seenRegComs[$regCom]) || isset($seenEuids[$euid])) {
+                Log::info("Skipping duplicate in file - reg_com: {$regCom}, euid: {$euid}");
+                continue;
+            }
+
+            $seenRegComs[$regCom] = true;
+            $seenEuids[$euid] = true;
+
+            $batch[] = $line;
+            $batchCount++;
+
+            if ($batchCount >= self::BATCH_SIZE) {
+                dispatch(new ProcessCompanyBatchImportJobUpsert($batch, $fieldMap));
+                $batch = [];
+                $batchCount = 0;
             }
         }
 
-        // Close the file
-        fclose($fileStream);
+        if (!empty($batch)) {
+            dispatch(new ProcessCompanyBatchImportJobUpsert($batch, $fieldMap));
+        }
 
-        // Delete the file after import
+        fclose($fileStream);
         unlink($this->file);
     }
 }

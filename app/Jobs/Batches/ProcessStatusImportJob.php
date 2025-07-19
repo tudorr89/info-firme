@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Jobs\CompaniesImport;
+namespace App\Jobs\Batches;
 
-use App\Models\CaenCompany;
+use App\Models\Status;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Laravel\Horizon\Contracts\Silenced;
 
-class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
+class ProcessStatusImportJob implements ShouldQueue, Silenced
 {
     use Queueable;
 
@@ -24,14 +24,13 @@ class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
      */
     public function handle(): void
     {
-        CaenCompany::firstOrCreate(
+        Status::firstOrCreate(
             [
                 'registration'      => $this->dataLine[$this->fieldMap['COD_INMATRICULARE']],
             ],
             [
                 'registration'      => $this->dataLine[$this->fieldMap['COD_INMATRICULARE']],
-                'code'              => $this->dataLine[$this->fieldMap['COD_CAEN_AUTORIZAT']],
-                'version'           => $this->dataLine[$this->fieldMap['VER_CAEN_AUTORIZAT']],
+                'status'            => $this->dataLine[$this->fieldMap['COD']],
             ]
         );
     }
