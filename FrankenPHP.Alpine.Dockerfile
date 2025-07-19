@@ -1,7 +1,7 @@
 # Accepted values: 8.3 - 8.2
 ARG PHP_VERSION=8.3
 
-ARG FRANKENPHP_VERSION=latest
+ARG FRANKENPHP_VERSION=1.8.0
 
 ARG COMPOSER_VERSION=latest
 
@@ -85,8 +85,6 @@ RUN apk update; \
     mbstring \
     bcmath \
     sockets \
-    pgsql \
-    pdo_pgsql \
     opcache \
     exif \
     pdo_mysql \
@@ -94,11 +92,8 @@ RUN apk update; \
     intl \
     gd \
     redis \
-    rdkafka \
     memcached \
     igbinary \
-    ldap \
-    swoole \
     && docker-php-source delete \
     && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
 
