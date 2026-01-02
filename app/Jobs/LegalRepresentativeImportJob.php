@@ -62,6 +62,5 @@ class LegalRepresentativeImportJob implements ShouldQueue
         }
 
         fclose($fileStream);
-        unlink($this->file);
     }
 }

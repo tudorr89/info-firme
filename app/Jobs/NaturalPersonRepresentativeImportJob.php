@@ -59,6 +59,5 @@ class NaturalPersonRepresentativeImportJob implements ShouldQueue
         }
 
         fclose($fileStream);
-        unlink($this->file);
     }
 }

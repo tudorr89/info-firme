@@ -82,7 +82,15 @@ class ProcessLegalRepresentativeBatchImport implements ShouldQueue, Silenced
             return null;
         }
 
+        $dateStr = trim($dateStr);
+
         try {
+            // Try format with timestamp first (d/m/Y H:i:s)
+            if (str_contains($dateStr, ' ')) {
+                return \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $dateStr)->toDateString();
+            }
+
+            // Fall back to date only format (d/m/Y)
             return \Carbon\Carbon::createFromFormat('d/m/Y', $dateStr)->toDateString();
         } catch (\Exception) {
             return null;
