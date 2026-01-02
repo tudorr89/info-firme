@@ -55,7 +55,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                     'reg_com' => $regCom,
                     'euid' => $euid,
                     'type' => $dataLine[$this->fieldMap['FORMA_JURIDICA']],
-                    'registration_date' => date('Y-m-d H:i:s', strtotime($dataLine[$this->fieldMap['DATA_INMATRICULARE']])),
+                    'registration_date' => $this->parseDate($dataLine[$this->fieldMap['DATA_INMATRICULARE']]),
                     'website' => $dataLine[$this->fieldMap['WEB']] ?? null,
                     'parent_country' => $dataLine[$this->fieldMap['TARA_FIRMA_MAMA']] ?? null,
                     'mark' => $dataLine[$this->fieldMap['MARK']] ?? null,
@@ -147,6 +147,24 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                     'new_reg_com' => $company['reg_com'],
                 ]);
             }
+        }
+    }
+
+    /**
+     * Parse date in DD/MM/YYYY format to Y-m-d H:i:s
+     */
+    private function parseDate(?string $dateStr): ?string
+    {
+        if (! $dateStr) {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::createFromFormat('d/m/Y', $dateStr)->format('Y-m-d H:i:s');
+        } catch (\Exception) {
+            Log::warning("Failed to parse date: {$dateStr}");
+
+            return null;
         }
     }
 

@@ -49,4 +49,19 @@ class Company extends Model
     {
         return $this->HasMany(CaenCompany::class, 'registration', 'reg_com');
     }
+
+    public function legalRepresentatives(): HasMany
+    {
+        return $this->hasMany(LegalRepresentative::class, 'registration', 'reg_com');
+    }
+
+    public function naturalPersonRepresentatives(): HasMany
+    {
+        return $this->hasMany(NaturalPersonRepresentative::class, 'registration', 'reg_com');
+    }
+
+    public function euBranches(): HasMany
+    {
+        return $this->hasMany(EUBranch::class, 'registration', 'reg_com');
+    }
 }
