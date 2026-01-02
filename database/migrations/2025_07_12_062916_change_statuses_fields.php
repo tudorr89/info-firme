@@ -23,9 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('companies', function (Blueprint $table) {
-            $table->foreignId('company_id')->constrained();
-            $table->dropColumn('registration');
-        });
+        // No-op: This migration changes the statuses table structure
     }
 };
