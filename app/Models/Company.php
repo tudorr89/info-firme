@@ -18,7 +18,10 @@ class Company extends Model
         'euid',
         'status',
         'registration_date',
-        'type'
+        'type',
+        'website',
+        'parent_country',
+        'mark',
     ];
 
     protected $hidden = [

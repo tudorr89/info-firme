@@ -9,8 +9,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Laravel\Horizon\Contracts\Silenced;
 
 class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
@@ -56,6 +56,9 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                     'euid' => $euid,
                     'type' => $dataLine[$this->fieldMap['FORMA_JURIDICA']],
                     'registration_date' => date('Y-m-d H:i:s', strtotime($dataLine[$this->fieldMap['DATA_INMATRICULARE']])),
+                    'website' => $dataLine[$this->fieldMap['WEB']] ?? null,
+                    'parent_country' => $dataLine[$this->fieldMap['TARA_FIRMA_MAMA']] ?? null,
+                    'mark' => $dataLine[$this->fieldMap['MARK']] ?? null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -70,7 +73,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                 Company::upsert(
                     $companyData,
                     ['reg_com'], // Primary unique identifier
-                    ['name', 'cui', 'type', 'registration_date', 'updated_at']
+                    ['name', 'cui', 'type', 'registration_date', 'website', 'parent_country', 'mark', 'updated_at']
                 );
                 sleep(10);
 
@@ -79,7 +82,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
 
             } catch (\Illuminate\Database\QueryException $e) {
                 // Fallback: Process records individually to handle conflicts
-                Log::warning('Bulk upsert failed, processing individually: ' . $e->getMessage());
+                Log::warning('Bulk upsert failed, processing individually: '.$e->getMessage());
                 $this->processCompaniesIndividually($companyData);
             }
 
@@ -100,7 +103,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                         'city' => $dataLine[$this->fieldMap['ADR_LOCALITATE']],
                         'county' => $dataLine[$this->fieldMap['ADR_JUDET']],
                         'street' => $dataLine[$this->fieldMap['ADR_DEN_STRADA']],
-                        'number' => $dataLine[$this->fieldMap['ADR_DEN_NR_STRADA']],
+                        'number' => $dataLine[$this->fieldMap['ADR_NR_STRADA']],
                         'block' => $dataLine[$this->fieldMap['ADR_BLOC']],
                         'scara' => $dataLine[$this->fieldMap['ADR_SCARA']],
                         'floor' => $dataLine[$this->fieldMap['ADR_ETAJ']],
@@ -115,7 +118,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
             }
 
             // Bulk upsert addresses
-            if (!empty($addressData)) {
+            if (! empty($addressData)) {
                 Address::upsert(
                     $addressData,
                     ['company_id'],
@@ -141,7 +144,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
 
                 Log::warning("EUID conflict detected: {$company['euid']} exists for different reg_com", [
                     'existing_reg_com' => $existingEuids[$company['euid']],
-                    'new_reg_com' => $company['reg_com']
+                    'new_reg_com' => $company['reg_com'],
                 ]);
             }
         }
@@ -164,7 +167,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                 } else {
                     Log::error("Failed to process company: {$company['reg_com']}", [
                         'error' => $e->getMessage(),
-                        'company' => $company
+                        'company' => $company,
                     ]);
                 }
             }
