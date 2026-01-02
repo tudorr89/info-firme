@@ -58,6 +58,5 @@ class EUBranchImportJob implements ShouldQueue
         }
 
         fclose($fileStream);
-        unlink($this->file);
     }
 }

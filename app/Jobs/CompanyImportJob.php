@@ -96,6 +96,5 @@ class CompanyImportJob implements ShouldQueue
         }
 
         fclose($fileStream);
-        unlink($this->file);
     }
 }

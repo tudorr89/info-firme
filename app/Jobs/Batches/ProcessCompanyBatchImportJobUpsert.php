@@ -25,7 +25,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
     }
 
     /**
-     * Execute the job - Alternative version using upsert for better performance
+     * Execute the job - Optimized for insert performance with separate update handling
      */
     public function handle(): void
     {
@@ -49,9 +49,16 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                 $processedRegComs[$regCom] = true;
                 $processedEuids[$euid] = true;
 
+                $cui = trim($dataLine[$this->fieldMap['CUI']] ?? '');
+
+                // Skip records without valid CUI
+                if (empty($cui) || $cui === '0') {
+                    continue;
+                }
+
                 $companyData[] = [
                     'name' => $dataLine[$this->fieldMap['DENUMIRE']],
-                    'cui' => $dataLine[$this->fieldMap['CUI']],
+                    'cui' => $cui,
                     'reg_com' => $regCom,
                     'euid' => $euid,
                     'type' => $dataLine[$this->fieldMap['FORMA_JURIDICA']],
@@ -68,22 +75,42 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                 return; // No valid data to process
             }
 
-            try {
-                // Method 1: Use upsert with composite unique constraint
-                Company::upsert(
-                    $companyData,
-                    ['reg_com'], // Primary unique identifier
-                    ['name', 'cui', 'type', 'registration_date', 'website', 'parent_country', 'mark', 'updated_at']
-                );
-                sleep(10);
+            // Optimize: Try bulk insert first (faster than upsert for new records)
+            $existingRegComs = Company::whereIn('reg_com', array_column($companyData, 'reg_com'))
+                ->pluck('id', 'reg_com')
+                ->toArray();
 
-                // Handle EUID conflicts separately if needed
-                $this->handleEuidConflicts($companyData);
+            $newCompanies = [];
+            $existingCompanies = [];
 
-            } catch (\Illuminate\Database\QueryException $e) {
-                // Fallback: Process records individually to handle conflicts
-                Log::warning('Bulk upsert failed, processing individually: '.$e->getMessage());
-                $this->processCompaniesIndividually($companyData);
+            foreach ($companyData as $company) {
+                if (isset($existingRegComs[$company['reg_com']])) {
+                    $company['id'] = $existingRegComs[$company['reg_com']];
+                    $existingCompanies[] = $company;
+                } else {
+                    $newCompanies[] = $company;
+                }
+            }
+
+            // Insert new companies (ignore duplicates on unique constraints)
+            if (! empty($newCompanies)) {
+                Company::insertOrIgnore($newCompanies);
+            }
+
+            // Update existing companies with only changed fields
+            if (! empty($existingCompanies)) {
+                foreach ($existingCompanies as $company) {
+                    Company::where('reg_com', $company['reg_com'])->update([
+                        'name' => $company['name'],
+                        'cui' => $company['cui'],
+                        'type' => $company['type'],
+                        'registration_date' => $company['registration_date'],
+                        'website' => $company['website'],
+                        'parent_country' => $company['parent_country'],
+                        'mark' => $company['mark'],
+                        'updated_at' => now(),
+                    ]);
+                }
             }
 
             // Get company IDs for addresses
@@ -117,37 +144,50 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                 }
             }
 
-            // Bulk upsert addresses
+            // Optimize address import: separate new and existing
             if (! empty($addressData)) {
-                Address::upsert(
-                    $addressData,
-                    ['company_id'],
-                    ['country', 'city', 'county', 'street', 'number', 'block', 'scara', 'floor', 'apartment', 'postalCode', 'sector', 'additional', 'updated_at']
-                );
+                $existingCompanyIds = Address::whereIn('company_id', array_column($addressData, 'company_id'))
+                    ->pluck('company_id')
+                    ->toArray();
+
+                $newAddresses = [];
+                $existingAddresses = [];
+
+                foreach ($addressData as $address) {
+                    if (in_array($address['company_id'], $existingCompanyIds, true)) {
+                        $existingAddresses[] = $address;
+                    } else {
+                        $newAddresses[] = $address;
+                    }
+                }
+
+                // Insert new addresses
+                if (! empty($newAddresses)) {
+                    Address::insert($newAddresses);
+                }
+
+                // Update existing addresses
+                if (! empty($existingAddresses)) {
+                    foreach ($existingAddresses as $address) {
+                        Address::where('company_id', $address['company_id'])->update([
+                            'country' => $address['country'],
+                            'city' => $address['city'],
+                            'county' => $address['county'],
+                            'street' => $address['street'],
+                            'number' => $address['number'],
+                            'block' => $address['block'],
+                            'scara' => $address['scara'],
+                            'floor' => $address['floor'],
+                            'apartment' => $address['apartment'],
+                            'postalCode' => $address['postalCode'],
+                            'sector' => $address['sector'],
+                            'additional' => $address['additional'],
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
             }
         });
-    }
-
-    /**
-     * Handle EUID conflicts by checking existing records
-     */
-    private function handleEuidConflicts(array $companyData): void
-    {
-        $euids = array_column($companyData, 'euid');
-        $existingEuids = Company::whereIn('euid', $euids)
-            ->pluck('reg_com', 'euid')
-            ->toArray();
-
-        foreach ($companyData as $company) {
-            if (isset($existingEuids[$company['euid']]) &&
-                $existingEuids[$company['euid']] !== $company['reg_com']) {
-
-                Log::warning("EUID conflict detected: {$company['euid']} exists for different reg_com", [
-                    'existing_reg_com' => $existingEuids[$company['euid']],
-                    'new_reg_com' => $company['reg_com'],
-                ]);
-            }
-        }
     }
 
     /**
@@ -159,36 +199,20 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
             return null;
         }
 
+        $dateStr = trim($dateStr);
+
         try {
+            // Try format with timestamp first (d/m/Y H:i:s)
+            if (str_contains($dateStr, ' ')) {
+                return \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $dateStr)->format('Y-m-d H:i:s');
+            }
+
+            // Fall back to date only format (d/m/Y)
             return \Carbon\Carbon::createFromFormat('d/m/Y', $dateStr)->format('Y-m-d H:i:s');
         } catch (\Exception) {
             Log::warning("Failed to parse date: {$dateStr}");
 
             return null;
-        }
-    }
-
-    /**
-     * Fallback method to process companies individually
-     */
-    private function processCompaniesIndividually(array $companyData): void
-    {
-        foreach ($companyData as $company) {
-            try {
-                Company::updateOrCreate(
-                    ['reg_com' => $company['reg_com']],
-                    $company
-                );
-            } catch (\Illuminate\Database\QueryException $e) {
-                if (str_contains($e->getMessage(), 'euid_unique')) {
-                    Log::warning("Skipping duplicate EUID: {$company['euid']} for reg_com: {$company['reg_com']}");
-                } else {
-                    Log::error("Failed to process company: {$company['reg_com']}", [
-                        'error' => $e->getMessage(),
-                        'company' => $company,
-                    ]);
-                }
-            }
         }
     }
 }

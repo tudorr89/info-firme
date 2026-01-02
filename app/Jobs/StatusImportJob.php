@@ -3,10 +3,8 @@
 namespace App\Jobs;
 
 use App\Jobs\Batches\ProcessStatusBatchImportJob;
-use App\Jobs\Batches\ProcessStatusImportJob;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 class StatusImportJob implements ShouldQueue
 {
@@ -35,6 +33,7 @@ class StatusImportJob implements ShouldQueue
         while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
             if ($skipHeader) {
                 $skipHeader = false;
+
                 continue;
             }
 
@@ -47,11 +46,10 @@ class StatusImportJob implements ShouldQueue
         }
 
         // Process remaining records
-        if (!empty($batch)) {
+        if (! empty($batch)) {
             dispatch(new ProcessStatusBatchImportJob($batch, $fieldMap, ++$batchCount));
         }
 
         fclose($fileStream);
-        unlink($this->file);
     }
 }
