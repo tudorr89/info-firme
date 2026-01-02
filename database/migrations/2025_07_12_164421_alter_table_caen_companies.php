@@ -26,10 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('caen_companies', function (Blueprint $table) {
-            $table->dropIndex('idx_registration_code');
-            $table->dropIndex('registration');
-            $table->dropIndex('code');
-        });
+        // No-op: This migration only adds indexes which are idempotent
     }
 };

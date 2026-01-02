@@ -22,9 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('statuses', function (Blueprint $table) {
-            $table->dropIndex('registration');
-            $table->dropIndex(['registration', 'status']);
-        });
+        // No-op: This migration only adds indexes which are idempotent
     }
 };
