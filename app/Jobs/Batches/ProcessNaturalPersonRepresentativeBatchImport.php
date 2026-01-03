@@ -12,12 +12,17 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Horizon\Contracts\Silenced;
+use PDOException;
 
 class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Silenced
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 300;
+
+    public $tries = 3;
+
+    public $backoff = [1, 5, 10];
 
     public function __construct(
         private array $batch,
@@ -33,10 +38,26 @@ class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Sile
             DB::transaction(function () {
                 $this->processBatch();
             });
+        } catch (PDOException $e) {
+            if ($this->isDeadlockException($e)) {
+                Log::warning("Deadlock detected in natural person representatives batch {$this->batchNumber}. Attempt {$this->attempts()}/3. Will retry.", [
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
+            Log::error("Natural Person Representatives Batch {$this->batchNumber} failed: ".$e->getMessage());
+            throw $e;
         } catch (\Exception $e) {
             Log::error("Natural Person Representatives Batch {$this->batchNumber} failed: ".$e->getMessage());
             throw $e;
         }
+    }
+
+    private function isDeadlockException(PDOException $e): bool
+    {
+        return str_contains($e->getMessage(), 'Deadlock') ||
+               str_contains($e->getMessage(), '1213') ||
+               str_contains($e->getMessage(), '40001');
     }
 
     private function processBatch(): void

@@ -14,7 +14,7 @@ class CompanyImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 2400;
+    public int $timeout = 14400;
 
     private const BATCH_SIZE = 1000; // Process 1000 records per batch
 
@@ -56,36 +56,23 @@ class CompanyImportJob implements ShouldQueue
         $batch = [];
         $batchCount = 0;
         $skipHeader = true;
+        $lineNumber = 0;
 
-        // Track unique identifiers to avoid duplicates within the file
-        $seenRegComs = [];
-        $seenEuids = [];
+        while (($line = fgetcsv($fileStream, 0, '^')) !== false) {
+            $lineNumber++;
 
-        while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
             if ($skipHeader) {
                 $skipHeader = false;
 
                 continue;
             }
 
-            $regCom = $line[$fieldMap['COD_INMATRICULARE']];
-            $euid = $line[$fieldMap['EUID']];
-
-            // Skip duplicates within the same file
-            if (isset($seenRegComs[$regCom]) || isset($seenEuids[$euid])) {
-                Log::info("Skipping duplicate in file - reg_com: {$regCom}, euid: {$euid}");
-
-                continue;
-            }
-
-            $seenRegComs[$regCom] = true;
-            $seenEuids[$euid] = true;
-
             $batch[] = $line;
             $batchCount++;
 
             if ($batchCount >= self::BATCH_SIZE) {
                 dispatch(new ProcessCompanyBatchImportJobUpsert($batch, $fieldMap));
+                Log::info('Dispatched batch with '.count($batch)." records (lines up to $lineNumber)");
                 $batch = [];
                 $batchCount = 0;
             }
@@ -93,8 +80,10 @@ class CompanyImportJob implements ShouldQueue
 
         if (! empty($batch)) {
             dispatch(new ProcessCompanyBatchImportJobUpsert($batch, $fieldMap));
+            Log::info('Dispatched final batch with '.count($batch)." records (lines up to $lineNumber)");
         }
 
+        Log::info("CompanyImportJob completed. Processed $lineNumber lines from CSV file");
         fclose($fileStream);
     }
 }
