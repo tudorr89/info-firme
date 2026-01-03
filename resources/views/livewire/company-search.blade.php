@@ -28,8 +28,7 @@
                                 </svg>
                                 <input
                                     type="text"
-                                    wire:model="search"
-                                    @keydown.enter="$wire.resetPage()"
+                                    wire:model.live.debounce.500ms="search"
                                     placeholder="Caută după CUI sau nume companie..."
                                     class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
                                     autofocus
@@ -79,8 +78,7 @@
                             </svg>
                             <input
                                 type="text"
-                                wire:model="search"
-                                @keydown.enter="$wire.resetPage()"
+                                wire:model.live.debounce.500ms="search"
                                 placeholder="Caută după CUI sau nume companie..."
                                 class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
                             >
