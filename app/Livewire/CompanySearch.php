@@ -63,7 +63,7 @@ class CompanySearch extends Component
     {
         // Only load results if user has searched or applied filters
         if (! $this->search && count(array_filter($this->filters)) === 0) {
-            return collect()->paginate(20);
+            return new \Illuminate\Pagination\Paginator([], 20, 1);
         }
 
         return Company::query()
