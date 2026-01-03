@@ -9,6 +9,13 @@ class EUBranch extends Model
 {
     protected $table = 'e_u_branches';
 
+    protected $hidden = [
+        'id',
+        'company_id',
+        'created_at',
+        'updated_at',
+    ];
+
     protected $fillable = [
         'company_id',
         'registration',
