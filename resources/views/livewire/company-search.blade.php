@@ -253,8 +253,10 @@
                                 <span class="font-semibold text-white">{{ min($results->currentPage() * 20, $results->total()) }}</span> din
                                 <span class="font-semibold text-white">{{ $results->total() }}</span> companii
                             </p>
-                        @else
+                        @elseif($search || count(array_filter($filters)) > 0)
                             <p class="text-slate-400">Nicio companie găsită</p>
+                        @else
+                            <p class="text-slate-500 italic">Introduceți un termen de căutare sau aplicați filtre pentru a găsi companii</p>
                         @endif
                     </div>
                 </div>

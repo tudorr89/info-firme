@@ -61,6 +61,11 @@ class CompanySearch extends Component
 
     public function getResultsProperty()
     {
+        // Only load results if user has searched or applied filters
+        if (! $this->search && count(array_filter($this->filters)) === 0) {
+            return collect()->paginate(20);
+        }
+
         return Company::query()
             ->when(
                 $this->search,
