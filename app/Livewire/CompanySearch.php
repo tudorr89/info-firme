@@ -12,35 +12,10 @@ class CompanySearch extends Component
 {
     public string $search = '';
 
-    public ?int $selectedCompanyId = null;
-
-    public ?Company $selectedCompany = null;
-
-    public function updatedSearch(): void
-    {
-        $this->selectedCompanyId = null;
-        $this->selectedCompany = null;
-    }
-
     public function selectCompany(int $companyId): void
     {
-        $this->selectedCompanyId = $companyId;
-        $this->selectedCompany = Company::with([
-            'address',
-            'info',
-            'status.details',
-            'caen.details',
-            'legalRepresentatives',
-            'naturalPersonRepresentatives',
-            'euBranches',
-        ])->find($companyId);
-    }
-
-    public function goBack(): void
-    {
-        $this->selectedCompanyId = null;
-        $this->selectedCompany = null;
-        $this->search = '';
+        $company = Company::findOrFail($companyId);
+        $this->redirect(route('company.show', $company->cui), navigate: false);
     }
 
     #[Computed]
@@ -61,8 +36,14 @@ class CompanySearch extends Component
 
     public function render()
     {
+        $seoMeta = view('components.seo-meta', [
+            'title' => 'Căutare Companii Românești | lista-firme.info',
+            'description' => 'Caută și descoperă informații despre companii românești. Peste 3.9 milioane de firme cu date oficiale: CUI, adresă, reprezentanți, cod CAEN.',
+            'canonical' => route('company.search'),
+        ])->render();
+
         return view('livewire.company-search', [
             'topResults' => $this->topResults,
-        ]);
+        ])->layoutData(['seoMeta' => $seoMeta]);
     }
 }
