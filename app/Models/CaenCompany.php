@@ -16,6 +16,8 @@ class CaenCompany extends Model
         'updated_at'
     ];
 
+    protected $appends = ['caen_details'];
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'registration', 'reg_com');
