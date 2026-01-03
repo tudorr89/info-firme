@@ -19,7 +19,7 @@
                     </div>
 
                     <!-- Search Bar with Glassmorphism -->
-                    <form method="GET" class="relative">
+                    <form wire:submit="search" class="relative">
                         <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-75"></div>
                         <div class="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl">
                             <div class="flex items-center gap-4">
@@ -29,10 +29,12 @@
                                 <input
                                     type="text"
                                     name="search"
-                                    value="{{ $search }}"
+                                    wire:model="search"
                                     placeholder="Caută după CUI sau nume companie..."
                                     class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
+                                    autocomplete="off"
                                     autofocus
+                                    @keydown.enter="$wire.search()"
                                 >
                                 @if($search)
                                     <a href="/" class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200">
@@ -66,7 +68,7 @@
                 </div>
 
                 <!-- Search Bar with Glassmorphism -->
-                <form method="GET" class="relative mb-6">
+                <form wire:submit="search" class="relative mb-6">
                     <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-75"></div>
                     <div class="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl">
                         <div class="flex items-center gap-4">
@@ -76,9 +78,11 @@
                             <input
                                 type="text"
                                 name="search"
-                                value="{{ $search }}"
+                                wire:model="search"
                                 placeholder="Caută după CUI sau nume companie..."
                                 class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
+                                autocomplete="off"
+                                @keydown.enter="$wire.search()"
                             >
                             @if($search)
                                 <a href="/" class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200">
@@ -119,6 +123,7 @@
                         <button
                             wire:click="clearFilters"
                             class="px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 font-medium"
+                            type="button"
                         >
                             Șterge Filtrele
                         </button>
@@ -132,7 +137,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Filters Sidebar (Collapsible on mobile) -->
             <div
-                @event('toggle-filters')="open = !open"
+                @toggle-filters="open = !open"
                 @click.away="open = false"
                 x-data="{ open: false }"
                 class="lg:col-span-1"
