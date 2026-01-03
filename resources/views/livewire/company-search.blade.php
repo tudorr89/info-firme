@@ -1,69 +1,119 @@
-<div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto">
-        <!-- Hero Section -->
-        <div class="mb-12">
-            <div class="text-center mb-8">
-                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-4">
-                    Descoperă Companiile
-                </h1>
-                <p class="text-lg text-slate-400 mb-8">
-                    Caută printre milioane de companii prin CUI, nume sau filtre avansate
-                </p>
-            </div>
+<div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8 flex flex-col">
+    <div class="max-w-7xl mx-auto w-full flex-1 flex flex-col">
+        @php
+            $hasSearch = $search || count(array_filter($filters)) > 0;
+        @endphp
 
-            <!-- Search Bar with Glassmorphism -->
-            <div class="relative mb-6">
-                <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-75"></div>
-                <div class="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl">
-                    <div class="flex items-center gap-4">
-                        <svg class="w-6 h-6 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        <input
-                            type="text"
-                            wire:model.live.debounce.500ms="search"
-                            placeholder="Caută după CUI sau nume companie..."
-                            class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
-                        >
-                        @if($search)
-                            <button
-                                wire:click="$set('search', '')"
-                                class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
-                            >
-                                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        <!-- Hero Section -->
+        <div @class(['mb-12' => $hasSearch, 'flex-1 flex flex-col justify-center items-center' => !$hasSearch])>
+            @if(!$hasSearch)
+                <!-- Centered Search Page -->
+                <div class="w-full max-w-2xl mx-auto">
+                    <div class="text-center mb-8">
+                        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-4">
+                            Descoperă Companiile
+                        </h1>
+                        <p class="text-lg text-slate-400 mb-12">
+                            Caută printre milioane de companii prin CUI, nume sau filtre avansate
+                        </p>
+                    </div>
+
+                    <!-- Search Bar with Glassmorphism -->
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-75"></div>
+                        <div class="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl">
+                            <div class="flex items-center gap-4">
+                                <svg class="w-6 h-6 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
-                            </button>
-                        @endif
+                                <input
+                                    type="text"
+                                    wire:model.live.debounce.500ms="search"
+                                    placeholder="Caută după CUI sau nume companie..."
+                                    class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
+                                    autofocus
+                                >
+                                @if($search)
+                                    <button
+                                        wire:click="$set('search', '')"
+                                        class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
+                                    >
+                                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            @else
+                <!-- Search with Results Page -->
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-4">
+                        Descoperă Companiile
+                    </h1>
+                    <p class="text-lg text-slate-400 mb-8">
+                        Caută printre milioane de companii prin CUI, nume sau filtre avansate
+                    </p>
+                </div>
 
-            <!-- Filter Toggle Button -->
-            <div class="flex gap-3">
-                <button
-                    @click="$dispatch('toggle-filters')"
-                    class="px-6 py-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl hover:bg-white/20 transition-all duration-200 text-white font-medium flex items-center gap-2"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
-                    </svg>
-                    Filtre
-                    @if(count(array_filter($filters)) > 0)
-                        <span class="ml-2 px-2 py-1 bg-red-500/80 rounded-full text-xs font-semibold">{{ count(array_filter($filters)) }}</span>
-                    @endif
-                </button>
+                <!-- Search Bar with Glassmorphism -->
+                <div class="relative mb-6">
+                    <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-75"></div>
+                    <div class="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl">
+                        <div class="flex items-center gap-4">
+                            <svg class="w-6 h-6 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input
+                                type="text"
+                                wire:model.live.debounce.500ms="search"
+                                placeholder="Caută după CUI sau nume companie..."
+                                class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
+                            >
+                            @if($search)
+                                <button
+                                    wire:click="$set('search', '')"
+                                    class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
+                                >
+                                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                </div>
 
-                @if(count(array_filter($filters)) > 0)
+                <!-- Filter Toggle Button -->
+                <div class="flex gap-3">
                     <button
-                        wire:click="clearFilters"
-                        class="px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 font-medium"
+                        @click="$dispatch('toggle-filters')"
+                        class="px-6 py-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl hover:bg-white/20 transition-all duration-200 text-white font-medium flex items-center gap-2"
                     >
-                        Șterge Filtrele
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                        </svg>
+                        Filtre
+                        @if(count(array_filter($filters)) > 0)
+                            <span class="ml-2 px-2 py-1 bg-red-500/80 rounded-full text-xs font-semibold">{{ count(array_filter($filters)) }}</span>
+                        @endif
                     </button>
-                @endif
-            </div>
+
+                    @if(count(array_filter($filters)) > 0)
+                        <button
+                            wire:click="clearFilters"
+                            class="px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 font-medium"
+                        >
+                            Șterge Filtrele
+                        </button>
+                    @endif
+                </div>
+            @endif
         </div>
+
+        @if($hasSearch)
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Filters Sidebar (Collapsible on mobile) -->
@@ -551,5 +601,6 @@
                 @endif
             </div>
         </div>
+        @endif
     </div>
 </div>
