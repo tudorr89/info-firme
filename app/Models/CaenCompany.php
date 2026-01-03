@@ -18,11 +18,24 @@ class CaenCompany extends Model
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class, 'reg_com', 'registration');
+        return $this->belongsTo(Company::class, 'registration', 'reg_com');
     }
 
     public function details(): BelongsTo
     {
-        return $this->belongsTo(Caen::class, 'code', 'id');
+        return $this->belongsTo(Caen::class, 'code', 'class');
+    }
+
+    public function getCaenDetailsAttribute(): ?Caen
+    {
+        // Try matching by class first (newer CAEN structure)
+        $caen = Caen::where('class', $this->code)->first();
+
+        // Fall back to matching by id (older CAEN structure)
+        if (!$caen) {
+            $caen = Caen::find($this->code);
+        }
+
+        return $caen;
     }
 }

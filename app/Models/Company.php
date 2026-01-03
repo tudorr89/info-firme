@@ -30,6 +30,13 @@ class Company extends Model
         'id',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'registration_date' => 'date',
+        ];
+    }
+
     public function address(): HasOne
     {
         return $this->hasOne(Address::class);
