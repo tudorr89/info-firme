@@ -4,11 +4,21 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Caută și descoperă companii române după CUI, nume și filtre avansate">
     <meta name="theme-color" content="#DC2626">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Info Firme') }} - Căutare Companii</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <!-- SEO Meta Tags -->
+    @yield('seoMeta', view('components.seo-meta')->render())
+
+    <!-- Resource Hints for Performance -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -36,7 +46,7 @@
 
     <!-- Main content with top padding for fixed header -->
     <div class="pt-16">
-        {{ $slot }}
+        @yield('content', $slot ?? '')
     </div>
 
     <!-- Footer -->
