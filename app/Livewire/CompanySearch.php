@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Company;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -12,6 +13,7 @@ class CompanySearch extends Component
 {
     use WithPagination;
 
+    #[Url]
     public string $search = '';
 
     public array $filters = [
@@ -24,7 +26,10 @@ class CompanySearch extends Component
 
     public ?int $expandedCompany = null;
 
-    protected $queryString = ['search', 'filters'];
+    public function mount(): void
+    {
+        // Initialize from URL if present
+    }
 
     public function updatedSearch(): void
     {

@@ -19,7 +19,7 @@
                     </div>
 
                     <!-- Search Bar with Glassmorphism -->
-                    <div class="relative">
+                    <form method="GET" class="relative">
                         <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-75"></div>
                         <div class="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl">
                             <div class="flex items-center gap-4">
@@ -28,34 +28,31 @@
                                 </svg>
                                 <input
                                     type="text"
-                                    wire:model.live.debounce.500ms="search"
+                                    name="search"
+                                    value="{{ $search }}"
                                     placeholder="Caută după CUI sau nume companie..."
                                     class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
                                     autofocus
                                 >
                                 @if($search)
-                                    <button
-                                        wire:click="$set('search', '')"
-                                        class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
-                                    >
+                                    <a href="/" class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200">
                                         <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
-                                    </button>
-                                @else
-                                    <button
-                                        @click="$wire.resetPage()"
-                                        class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
-                                        title="Caută"
-                                    >
-                                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                        </svg>
-                                    </button>
+                                    </a>
                                 @endif
+                                <button
+                                    type="submit"
+                                    class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
+                                    title="Cauta"
+                                >
+                                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    </form>
                 </div>
             @else
                 <!-- Search with Results Page -->
@@ -69,7 +66,7 @@
                 </div>
 
                 <!-- Search Bar with Glassmorphism -->
-                <div class="relative mb-6">
+                <form method="GET" class="relative mb-6">
                     <div class="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-xl opacity-75"></div>
                     <div class="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 shadow-2xl">
                         <div class="flex items-center gap-4">
@@ -78,33 +75,30 @@
                             </svg>
                             <input
                                 type="text"
-                                wire:model.live.debounce.500ms="search"
+                                name="search"
+                                value="{{ $search }}"
                                 placeholder="Caută după CUI sau nume companie..."
                                 class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
                             >
                             @if($search)
-                                <button
-                                    wire:click="$set('search', '')"
-                                    class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
-                                >
+                                <a href="/" class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200">
                                     <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
-                                </button>
-                            @else
-                                <button
-                                    @click="$wire.resetPage()"
-                                    class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
-                                    title="Caută"
-                                >
-                                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
-                                </button>
+                                </a>
                             @endif
+                            <button
+                                type="submit"
+                                class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
+                                title="Cauta"
+                            >
+                                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                </div>
+                </form>
 
                 <!-- Filter Toggle Button -->
                 <div class="flex gap-3">

@@ -62,6 +62,7 @@
     </footer>
 
     @livewireScriptConfig
+    @livewireScripts
 
     <script>
         document.addEventListener('livewire:init', function() {
