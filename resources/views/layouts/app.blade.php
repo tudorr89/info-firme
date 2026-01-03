@@ -6,10 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Caută și descoperă companii române după CUI, nume și filtre avansate">
     <meta name="theme-color" content="#DC2626">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Info Firme') }} - Căutare Companii</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @livewireStyles
 </head>
 
 <body class="antialiased bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-slate-300 dark:text-slate-300">
@@ -61,7 +63,6 @@
         </div>
     </footer>
 
-    @livewireScriptConfig
     @livewireScripts
 
     <script>
