@@ -4,10 +4,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Search and discover Romanian companies by CUI, name, and advanced filters">
+    <meta name="description" content="Caută și descoperă companii române după CUI, nume și filtre avansate">
     <meta name="theme-color" content="#DC2626">
 
-    <title>{{ config('app.name', 'Info Firme') }} - Company Search</title>
+    <title>{{ config('app.name', 'Info Firme') }} - Căutare Companii</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -23,12 +23,12 @@
     <!-- Header with Logo -->
     <div class="fixed top-0 left-0 right-0 z-50 border-b border-white/10 backdrop-blur-md bg-slate-900/50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
+            <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <x-logo />
                 <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                     lista-firme.info
                 </span>
-            </div>
+            </a>
         </div>
     </div>
 

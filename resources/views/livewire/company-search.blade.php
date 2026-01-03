@@ -28,7 +28,8 @@
                                 </svg>
                                 <input
                                     type="text"
-                                    wire:model.live.debounce.500ms="search"
+                                    wire:model="search"
+                                    @keydown.enter="$wire.resetPage()"
                                     placeholder="Caută după CUI sau nume companie..."
                                     class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
                                     autofocus
@@ -40,6 +41,16 @@
                                     >
                                         <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                @else
+                                    <button
+                                        @click="$wire.resetPage()"
+                                        class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
+                                        title="Caută"
+                                    >
+                                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                         </svg>
                                     </button>
                                 @endif
@@ -68,7 +79,8 @@
                             </svg>
                             <input
                                 type="text"
-                                wire:model.live.debounce.500ms="search"
+                                wire:model="search"
+                                @keydown.enter="$wire.resetPage()"
                                 placeholder="Caută după CUI sau nume companie..."
                                 class="flex-1 bg-transparent text-white placeholder-slate-400 focus:outline-none text-lg"
                             >
@@ -79,6 +91,16 @@
                                 >
                                     <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            @else
+                                <button
+                                    @click="$wire.resetPage()"
+                                    class="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
+                                    title="Caută"
+                                >
+                                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                     </svg>
                                 </button>
                             @endif
