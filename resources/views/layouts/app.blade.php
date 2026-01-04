@@ -14,7 +14,11 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 
     <!-- SEO Meta Tags -->
-    @yield('seoMeta', view('components.seo-meta')->render())
+    @if(isset($seoMeta))
+        {!! $seoMeta !!}
+    @else
+        @yield('seoMeta', view('components.seo-meta')->render())
+    @endif
 
     <!-- Resource Hints for Performance -->
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
