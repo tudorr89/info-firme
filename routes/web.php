@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\SitemapController;
+use App\Http\Controllers\API\SitemapController;
 use App\Http\Controllers\CompanyController;
 use App\Livewire\CompanySearch;
 use Illuminate\Support\Facades\Route;
