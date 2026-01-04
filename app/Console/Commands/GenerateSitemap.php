@@ -28,7 +28,7 @@ class GenerateSitemap extends Command
         // Generate index file
         $this->generateIndex($totalChunks);
 
-        $this->info("Sitemap generation complete!");
+        $this->info('Sitemap generation complete!');
 
         return Command::SUCCESS;
     }
@@ -49,7 +49,7 @@ class GenerateSitemap extends Command
             $lastmod = $company->updated_at->format('Y-m-d');
 
             $xml .= "  <url>\n";
-            $xml .= "    <loc>".htmlspecialchars($url)."</loc>\n";
+            $xml .= '    <loc>'.htmlspecialchars($url)."</loc>\n";
             $xml .= "    <lastmod>{$lastmod}</lastmod>\n";
             $xml .= "    <changefreq>monthly</changefreq>\n";
             $xml .= "    <priority>0.8</priority>\n";
@@ -58,7 +58,12 @@ class GenerateSitemap extends Command
 
         $xml .= '</urlset>';
 
-        $filename = public_path("sitemap-{$chunkNumber}.xml");
+        $sitemapDir = storage_path('app/sitemaps');
+        if (! is_dir($sitemapDir)) {
+            mkdir($sitemapDir, 0755, true);
+        }
+
+        $filename = $sitemapDir."/sitemap-{$chunkNumber}.xml";
         file_put_contents($filename, $xml);
 
         $this->info("Generated sitemap-{$chunkNumber}.xml ({$companies->count()} URLs)");
@@ -70,17 +75,22 @@ class GenerateSitemap extends Command
         $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
 
         for ($i = 1; $i <= $totalChunks; $i++) {
-            $url = url("sitemap-{$i}.xml");
+            $url = url("api/sitemap-{$i}.xml");
             $xml .= "  <sitemap>\n";
-            $xml .= "    <loc>".htmlspecialchars($url)."</loc>\n";
+            $xml .= '    <loc>'.htmlspecialchars($url)."</loc>\n";
             $xml .= "  </sitemap>\n";
         }
 
         $xml .= '</sitemapindex>';
 
-        $filename = public_path('sitemap.xml');
+        $sitemapDir = storage_path('app/sitemaps');
+        if (! is_dir($sitemapDir)) {
+            mkdir($sitemapDir, 0755, true);
+        }
+
+        $filename = $sitemapDir.'/sitemap.xml';
         file_put_contents($filename, $xml);
 
-        $this->info("Generated sitemap index (sitemap.xml)");
+        $this->info('Generated sitemap index (sitemap.xml)');
     }
 }
