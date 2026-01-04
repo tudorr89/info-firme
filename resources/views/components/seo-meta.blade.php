@@ -39,56 +39,58 @@
 <meta name="twitter:image" content="{{ asset('og-image.png') }}">
 
 <!-- Schema.org Structured Data -->
-@if($type === 'organization' && $company)
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "{{ $company->name }}",
-        "url": "{{ route('company.show', $company->cui) }}",
-        "identifier": {
-            "@type": "PropertyValue",
-            "name": "CUI",
-            "value": "{{ $company->cui }}"
+@php
+    if ($type === 'organization' && $company) {
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => $company->name,
+            'url' => route('company.show', $company->cui),
+            'identifier' => [
+                '@type' => 'PropertyValue',
+                'name' => 'CUI',
+                'value' => $company->cui,
+            ],
+        ];
+
+        if ($company->website) {
+            $schema['sameAs'] = $company->website;
         }
-        @if($company->website)
-            ,"sameAs": "{{ $company->website }}"
-        @endif
-        @if($company->registration_date)
-            ,"foundingDate": "{{ $company->registration_date->format('Y-m-d') }}"
-        @endif
-        @if($company->address)
-            ,"address": {
-                "@type": "PostalAddress",
-                "streetAddress": "{{ $company->address->street ?? '' }} {{ $company->address->number ?? '' }}",
-                "addressLocality": "{{ $company->address->city ?? '' }}",
-                "addressRegion": "{{ $company->address->county ?? '' }}",
-                "postalCode": "{{ $company->address->postalCode ?? '' }}",
-                "addressCountry": "RO"
-            }
-        @endif
-        @if($company->info && $company->info->phone)
-            ,"telephone": "{{ $company->info->phone }}"
-        @endif
-    }
-    </script>
-@else
-    <!-- Schema.org for Website with Search Action -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "lista-firme.info",
-        "url": "{{ url('/') }}",
-        "description": "Căutare și descoperire de informații despre companii românești",
-        "potentialAction": {
-            "@type": "SearchAction",
-            "target": {
-                "@type": "EntryPoint",
-                "urlTemplate": "{{ url('/') }}?search={search_term_string}"
-            },
-            "query-input": "required name=search_term_string"
+
+        if ($company->registration_date) {
+            $schema['foundingDate'] = $company->registration_date->format('Y-m-d');
         }
+
+        if ($company->address) {
+            $schema['address'] = [
+                '@type' => 'PostalAddress',
+                'streetAddress' => trim(($company->address->street ?? '') . ' ' . ($company->address->number ?? '')),
+                'addressLocality' => $company->address->city ?? '',
+                'addressRegion' => $company->address->county ?? '',
+                'postalCode' => $company->address->postalCode ?? '',
+                'addressCountry' => 'RO',
+            ];
+        }
+
+        if ($company->info && $company->info->phone) {
+            $schema['telephone'] = $company->info->phone;
+        }
+    } else {
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => 'lista-firme.info',
+            'url' => url('/'),
+            'description' => 'Căutare și descoperire de informații despre companii românești',
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => [
+                    '@type' => 'EntryPoint',
+                    'urlTemplate' => url('/') . '?search={search_term_string}',
+                ],
+                'query-input' => 'required name=search_term_string',
+            ],
+        ];
     }
-    </script>
-@endif
+@endphp
+<script type="application/ld+json">{{ json_encode($schema) }}</script>
