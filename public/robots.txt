@@ -1,4 +1,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://info-firme.test/sitemap.xml
+Sitemap: https://lista-firme.info/sitemap.xml
