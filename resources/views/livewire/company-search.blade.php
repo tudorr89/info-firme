@@ -3,7 +3,7 @@
         <!-- Search View -->
         <div class="flex flex-col justify-center items-center min-h-[60vh]">
             <div class="w-full max-w-2xl">
-                <h1 class="text-4xl sm:text-5xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 mb-12">
+                <h1 class="text-4xl sm:text-5xl font-bold text-center text-white mb-12">
                     Cauta Companii
                 </h1>
 
