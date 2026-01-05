@@ -41,7 +41,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
             <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <x-logo />
-                <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
+                <span class="text-xl font-bold text-white">
                     lista-firme.info
                 </span>
             </a>

@@ -1,21 +1,12 @@
 <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" class="w-8 h-8">
-  <!-- Gradient definition -->
-  <defs>
-    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#ec4899;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-
   <!-- Background circle -->
-  <circle cx="60" cy="60" r="58" fill="none" stroke="url(#logoGradient)" stroke-width="2" opacity="0.3"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="white" stroke-width="2" opacity="0.3"/>
 
   <!-- Main shape - stylized folder/document with ascending lines (representing a list) -->
   <g>
     <!-- Folder top -->
     <path d="M 30 45 L 30 35 Q 30 30 35 30 L 45 30 Q 48 30 50 33 L 55 33 Q 60 33 60 38 L 85 38 Q 90 38 90 43 L 90 75 Q 90 80 85 80 L 35 80 Q 30 80 30 75 Z"
-          fill="url(#logoGradient)" opacity="0.9"/>
+          fill="white" opacity="0.9"/>
 
     <!-- List lines inside -->
     <line x1="40" y1="50" x2="80" y2="50" stroke="white" stroke-width="2" stroke-linecap="round"/>
