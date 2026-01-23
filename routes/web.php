@@ -10,11 +10,13 @@ Route::get('/companie/{cui}', [CompanyController::class, 'show'])
     ->name('company.show')
     ->where('cui', '[0-9]+');
 
-// Sitemap routes
-Route::get('/sitemap.xml', [SitemapController::class, 'index']);
-Route::get('/api/sitemap-{number}.xml', [SitemapController::class, 'chunk'])
-    ->where('number', '[0-9]+');
-
 Route::fallback(function () {
     abort(401, 'Unauthorized');
+});
+
+// Sitemap routes - use API middleware to avoid session cookies
+Route::withoutMiddleware(['web'])->group(function () {
+    Route::get('/sitemap.xml', [SitemapController::class, 'index']);
+    Route::get('/api/sitemap-{number}.xml', [SitemapController::class, 'chunk'])
+        ->where('number', '[0-9]+');
 });
