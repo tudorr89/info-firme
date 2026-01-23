@@ -1,0 +1,4 @@
+[2026-01-23 17:47:07] local.ERROR: Allowed memory size of 134217728 bytes exhausted (tried to allocate 7864360 bytes) {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Allowed memory size of 134217728 bytes exhausted (tried to allocate 7864360 bytes) at /Users/tudor/Projects/info-firme/app/Console/Commands/GenerateSitemap.php:53)
+[stacktrace]
+#0 {main}
+"} 
