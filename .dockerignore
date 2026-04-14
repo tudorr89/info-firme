@@ -9,6 +9,11 @@
 /storage/ssr
 /storage/clockwork
 /storage/logs
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/views
+/storage/framework/testing
+/bootstrap/cache
 /storage/pail
 .phpunit.result.cache
 Homestead.json
@@ -23,7 +28,7 @@ _ide_helper_models.php
 _ide_helper.php
 .php-cs-fixer.cache
 .husky
-/.vscode
+.vscode
 **/.DS_Store
 /public/page-cache
 .phpunit.database.checksum
@@ -33,3 +38,4 @@ rr
 frankenphp
 .config
 .data
+.git

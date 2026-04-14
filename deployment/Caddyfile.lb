@@ -1,0 +1,44 @@
+# Caddy Load Balancer Configuration
+# This Caddy instance serves as a load balancer for zero-downtime deployments
+
+{
+	admin off
+	auto_https off
+}
+
+# Load balance between api-1 and api-2
+:80 {
+	log {
+		level WARN
+	}
+
+	# Health check endpoint
+	@health path /health
+	handle @health {
+		respond "OK" 200
+	}
+
+	# Reverse proxy to API instances with load balancing
+	reverse_proxy api-1:8000 api-2:8000 {
+          # Use least connection policy
+          lb_policy least_conn
+
+          # ADD THESE LINES FOR ACTIVE HEALTH CHECKS:
+          health_uri /api/v1/health/deep
+          health_interval 2s
+          health_timeout 3s
+          health_status 2xx
+
+          # Mark unhealthy after 1 failed check (instant failover)
+          fail_duration 10s
+          max_fails 1
+          unhealthy_status 5xx
+          unhealthy_latency 5s
+
+          # Preserve original headers for backend logging
+          header_up X-Forwarded-Host {http.request.host}
+          header_up X-Forwarded-Port {http.request.port}
+          header_up X-Forwarded-Proto {http.request.proto}
+          header_up X-Forwarded-For {http.request.remote.host}
+      }
+}
