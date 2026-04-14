@@ -4,6 +4,7 @@ namespace App\Jobs\Batches;
 
 use App\Models\Address;
 use App\Models\Company;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -213,7 +214,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
     }
 
     /**
-     * Parse date in DD/MM/YYYY format to Y-m-d H:i:s
+     * Parse date in DD/MM/YYYY or DD.MM.YYYY format to Y-m-d H:i:s
      */
     private function parseDate(?string $dateStr): ?string
     {
@@ -223,18 +224,20 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
 
         $dateStr = trim($dateStr);
 
-        try {
-            // Try format with timestamp first (d/m/Y H:i:s)
-            if (str_contains($dateStr, ' ')) {
-                return \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $dateStr)->format('Y-m-d H:i:s');
+        $formats = str_contains($dateStr, '/')
+            ? ['d/m/Y H:i:s', 'd/m/Y']
+            : ['d.m.Y H:i:s', 'd.m.Y'];
+
+        foreach ($formats as $format) {
+            try {
+                return Carbon::createFromFormat($format, $dateStr)->format('Y-m-d H:i:s');
+            } catch (\Exception) {
+                continue;
             }
-
-            // Fall back to date only format (d/m/Y)
-            return \Carbon\Carbon::createFromFormat('d/m/Y', $dateStr)->format('Y-m-d H:i:s');
-        } catch (\Exception) {
-            Log::warning("Failed to parse date: {$dateStr}");
-
-            return null;
         }
+
+        Log::warning("Failed to parse date: {$dateStr}");
+
+        return null;
     }
 }
