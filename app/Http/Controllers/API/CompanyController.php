@@ -23,7 +23,7 @@ class CompanyController extends Controller
                     'legalRepresentatives',
                     'naturalPersonRepresentatives',
                     'euBranches',
-                ])->where('cui', $request->cui)->firstOrFail();
+                ])->where('cui', $request->cui)->orderBy('registration_date', 'desc')->firstOrFail();
             });
 
             return response()->json($company);
