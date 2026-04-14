@@ -30,6 +30,7 @@ class CompanySearch extends Component
                 $q->where('cui', $this->search)
                     ->orWhere('name', 'like', '%'.$this->search.'%');
             })
+            ->orderBy('registration_date', 'desc')
             ->limit(10)
             ->get();
     }

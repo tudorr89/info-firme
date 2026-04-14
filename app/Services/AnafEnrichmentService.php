@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Processors\AnafProcessor;
-use App\Models\Company;
 use App\Jobs\AnafEnrichmentJob;
+use App\Models\Company;
+use App\Processors\AnafProcessor;
 
 class AnafEnrichmentService
 {
@@ -36,7 +36,7 @@ class AnafEnrichmentService
         foreach ($results as $result) {
             $cui = $result['date_generale']['cui'];
             if ($companyCuiMap->has($cui)) {
-                $company = Company::where('cui', $cui)->first();
+                $company = Company::where('cui', $cui)->orderBy('registration_date', 'desc')->first();
                 dispatch(new AnafEnrichmentJob($company, $result));
             }
         }
