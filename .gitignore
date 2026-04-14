@@ -21,7 +21,7 @@ yarn-error.log
 /.vscode
 *.csv
 /caddy
-frankenphp
+/frankenphp
 frankenphp-worker.php
 build-app.sh
 /data
