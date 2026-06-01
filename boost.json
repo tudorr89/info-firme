@@ -2,15 +2,21 @@
     "agents": [
         "claude_code",
         "gemini",
-        "phpstorm"
+        "opencode",
+        "codex"
     ],
-    "editors": [
-        "claude_code",
-        "gemini",
-        "phpstorm",
-        "vscode"
-    ],
-    "guidelines": [
+    "cloud": false,
+    "guidelines": true,
+    "mcp": true,
+    "nightwatch": false,
+    "packages": [
         "filament/filament"
+    ],
+    "sail": false,
+    "skills": [
+        "laravel-best-practices",
+        "configuring-horizon",
+        "pulse-development",
+        "tailwindcss-development"
     ]
 }
