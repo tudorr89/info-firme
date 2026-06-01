@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Address;
 use App\Models\Company;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -73,6 +74,13 @@ class CompanyImportService
                 // Skip records without valid CUI
                 if (empty($cui) || $cui === '0') {
                     Log::info("Skipping record with invalid CUI - reg_com: {$regCom}, cui: '{$cui}'");
+
+                    continue;
+                }
+
+                // Skip records with CUI in the skip list
+                if (in_array($cui, config('skip.cifs'))) {
+                    Log::info("Skipping record with CUI in skip list - reg_com: {$regCom}, cui: '{$cui}'");
 
                     continue;
                 }
@@ -228,11 +236,11 @@ class CompanyImportService
         try {
             // Try format with timestamp first (d/m/Y H:i:s)
             if (str_contains($dateStr, ' ')) {
-                return \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $dateStr)->format('Y-m-d H:i:s');
+                return Carbon::createFromFormat('d/m/Y H:i:s', $dateStr)->format('Y-m-d H:i:s');
             }
 
             // Fall back to date only format (d/m/Y)
-            return \Carbon\Carbon::createFromFormat('d/m/Y', $dateStr)->format('Y-m-d H:i:s');
+            return Carbon::createFromFormat('d/m/Y', $dateStr)->format('Y-m-d H:i:s');
         } catch (\Exception) {
             Log::warning("Failed to parse date: {$dateStr}");
 

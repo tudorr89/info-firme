@@ -63,6 +63,11 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                         continue;
                     }
 
+                    // Skip records with CUI in the skip list
+                    if (in_array($cui, config('skip.cifs'))) {
+                        continue;
+                    }
+
                     $companyData[] = [
                         'name' => $dataLine[$this->fieldMap['DENUMIRE']],
                         'cui' => $cui,
