@@ -1,5 +1,6 @@
-ARG PHP_VERSION=8.4
-ARG FRANKENPHP_VERSION=1.11
+# Pinned to PHP 8.4.27 (fixes CVE-2026-109618 / CVE-2026-109619)
+ARG PHP_VERSION=8.4.27
+ARG FRANKENPHP_VERSION=1.13.2
 ARG COMPOSER_VERSION=2.8
 ARG GIT_COMMIT_HASH
 ARG GIT_COMMIT_DATE
@@ -34,6 +35,7 @@ LABEL org.opencontainers.image.licenses=MIT
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG TZ=UTC
+ARG BUN_VERSION=1.4.2
 ARG GIT_COMMIT_HASH=unknown
 ARG GIT_COMMIT_DATE=unknown
 
@@ -75,7 +77,7 @@ RUN apk update; \
     bash \
     supervisor \
     libsodium-dev \
-    && curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr bash \
+    && curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr bash -s "bun-v${BUN_VERSION}" \
     && install-php-extensions \
     bz2 \
     pcntl \
