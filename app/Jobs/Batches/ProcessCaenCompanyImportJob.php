@@ -2,7 +2,7 @@
 
 namespace App\Jobs\Batches;
 
-use App\Models\CaenCompany;
+use App\Services\Import\BulkUpsert;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -12,69 +12,66 @@ class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
 {
     use Batchable, Queueable;
 
-    public $timeout = 300; // 5 minutes
+    public int $timeout = 300;
 
-    public $tries = 3;
+    public int $tries = 3;
 
+    /**
+     * @param  array<int, array<int, string>>  $dataChunk
+     * @param  array<string, int>  $fieldMap
+     */
     public function __construct(private array $dataChunk, private array $fieldMap)
     {
         //
     }
 
-    /**
-     * Execute the job - Process multiple records in bulk
-     */
     public function handle(): void
     {
-        $insertData = [];
-        $updateData = [];
+        $rows = $this->rows();
 
-        // Get existing registrations in one query
-        $registrationCodes = array_map(function ($line) {
-            return [
-                'registration' => $line[$this->fieldMap['COD_INMATRICULARE']],
-                'code' => $line[$this->fieldMap['COD_CAEN_AUTORIZAT']],
-            ];
-        }, $this->dataChunk);
+        if ($rows === []) {
+            return;
+        }
 
-        $existing = CaenCompany::whereIn('registration', array_column($registrationCodes, 'registration'))
-            ->whereIn('code', array_column($registrationCodes, 'code'))
-            ->get(['registration', 'code'])
-            ->mapWithKeys(fn ($row) => [$row->registration.'|'.$row->code => true])
-            ->all();
+        BulkUpsert::upsertWhereCompanyExists(
+            'caen_companies',
+            $rows,
+            ['version'],
+            ['version']
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rows(): array
+    {
+        $now = now()->toDateTimeString();
+        $rows = [];
 
         foreach ($this->dataChunk as $line) {
-            $registration = $line[$this->fieldMap['COD_INMATRICULARE']];
-            $code = $line[$this->fieldMap['COD_CAEN_AUTORIZAT']];
-            $version = $line[$this->fieldMap['VER_CAEN_AUTORIZAT']];
+            $registration = trim((string) ($line[$this->fieldMap['COD_INMATRICULARE']] ?? ''));
+            $code = trim((string) ($line[$this->fieldMap['COD_CAEN_AUTORIZAT']] ?? ''));
 
-            $record = [
+            if ($registration === '' || $code === '') {
+                continue;
+            }
+
+            $key = $registration.'|'.$code;
+
+            if (isset($rows[$key])) {
+                continue;
+            }
+
+            $rows[$key] = [
                 'registration' => $registration,
-                'code' => $code,
-                'version' => $version,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'code' => (int) $code,
+                'version' => (int) trim((string) ($line[$this->fieldMap['VER_CAEN_AUTORIZAT']] ?? '')),
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
-
-            if (! isset($existing[$registration.'|'.$code])) {
-                $insertData[] = $record;
-            } else {
-                $updateData[] = $record;
-            }
         }
 
-        // Bulk insert new records
-        if (! empty($insertData)) {
-            CaenCompany::insert($insertData);
-        }
-
-        // Bulk update existing records if needed
-        if (! empty($updateData)) {
-            foreach ($updateData as $record) {
-                CaenCompany::where('registration', $record['registration'])
-                    ->where('code', $record['code'])
-                    ->update(['version' => $record['version'], 'updated_at' => $record['updated_at']]);
-            }
-        }
+        return array_values($rows);
     }
 }

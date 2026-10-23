@@ -2,12 +2,12 @@
 
 namespace App\Settings;
 
-use Spatie\LaravelSettings\Settings;
 use DateTime;
+use Spatie\LaravelSettings\Settings;
 
 class GeneralSettings extends Settings
 {
-    public DateTime $lastUpdate;
+    public ?DateTime $lastUpdate = null;
 
     public static function group(): string
     {

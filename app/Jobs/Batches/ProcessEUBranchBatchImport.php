@@ -65,6 +65,15 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
         $insertData = [];
         $now = now();
 
+        $registrations = array_filter(array_map(
+            fn (array $line) => $line[$this->fieldMap['COD_INMATRICULARE']] ?? null,
+            $this->batch
+        ));
+
+        $companies = Company::whereIn('reg_com', $registrations)
+            ->pluck('id', 'reg_com')
+            ->all();
+
         foreach ($this->batch as $line) {
             $registration = $line[$this->fieldMap['COD_INMATRICULARE']] ?? null;
 
@@ -72,11 +81,14 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
                 continue;
             }
 
-            // Get company_id from registration
-            $company = Company::where('reg_com', $registration)->first();
+            $companyId = $companies[$registration] ?? null;
+
+            if ($companyId === null) {
+                continue;
+            }
 
             $insertData[] = [
-                'company_id' => $company?->id,
+                'company_id' => $companyId,
                 'registration' => $registration,
                 'branch_type' => $line[$this->fieldMap['TIP_UNITATE']] ?? null,
                 'branch_name' => $line[$this->fieldMap['DENUMIRE_SUCURSALA']] ?? null,
@@ -89,6 +101,7 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
         }
 
         if (! empty($insertData)) {
+            EUBranch::whereIn('registration', array_keys($companies))->delete();
             EUBranch::insert($insertData);
         }
     }

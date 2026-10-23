@@ -13,7 +13,7 @@ class CaenCompany extends Model
         'id',
         'registration',
         'created_at',
-        'updated_at'
+        'updated_at',
     ];
 
     protected $appends = ['caen_details'];
@@ -30,14 +30,19 @@ class CaenCompany extends Model
 
     public function getCaenDetailsAttribute(): ?Caen
     {
-        // Try matching by class first (newer CAEN structure)
-        $caen = Caen::where('class', $this->code)->first();
+        return $this->resolveCaen()?->setRelation('version', $this->version);
+    }
 
-        // Fall back to matching by id (older CAEN structure)
-        if (!$caen) {
-            $caen = Caen::find($this->code);
-        }
-
-        return $caen;
+    /**
+     * Resolve the CAEN definition matching both the code and the CAEN version,
+     * falling back to the newest definition of that code.
+     */
+    private function resolveCaen(): ?Caen
+    {
+        return Caen::where('class', $this->code)
+            ->where('version', $this->version)
+            ->first()
+            ?? Caen::where('class', $this->code)->orderByDesc('version')->first()
+            ?? Caen::find($this->code);
     }
 }

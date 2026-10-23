@@ -2,25 +2,36 @@
 
 namespace App\Jobs\Batches;
 
-use App\Models\Status;
+use App\Services\Import\BulkUpsert;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Horizon\Contracts\Silenced;
 use PDOException;
 
+/**
+ * Imports the company status file.
+ *
+ * Rows are written with a single `INSERT ... SELECT ... ON DUPLICATE KEY
+ * UPDATE` that joins `companies`, so statuses for companies that were not
+ * imported (banned CIFs or rows outside the snapshot) are skipped by the
+ * database instead of a separate existence query per batch.
+ */
 class ProcessStatusBatchImportJob implements ShouldQueue, Silenced
 {
     use Queueable;
 
     public int $tries = 3;
 
+    /** @var array<int, int> */
     public array $backoff = [1, 5, 10];
 
-    /** 5 minutes per batch. */
     public int $timeout = 300;
 
+    /**
+     * @param  array<int, array<int, mixed>>  $batch
+     * @param  array<string, int>  $fieldMap
+     */
     public function __construct(
         private array $batch,
         private array $fieldMap,
@@ -30,20 +41,22 @@ class ProcessStatusBatchImportJob implements ShouldQueue, Silenced
     public function handle(): void
     {
         try {
-            DB::transaction(function () {
-                $this->processUpsertBatch();
-            });
-        } catch (PDOException $e) {
-            if ($this->isDeadlockException($e)) {
-                Log::warning("Deadlock detected in status batch {$this->batchNumber}. Attempt {$this->attempts()}/3. Will retry.", [
-                    'error' => $e->getMessage(),
-                ]);
-                throw $e;
+            $rows = $this->rows();
+
+            if ($rows === []) {
+                return;
             }
-            Log::error("Batch {$this->batchNumber} failed: ".$e->getMessage());
-            throw $e;
-        } catch (\Exception $exception) {
-            Log::error("Batch {$this->batchNumber} failed: ".$exception->getMessage());
+
+            BulkUpsert::upsertWhereCompanyExists('statuses', $rows, ['status'], ['status']);
+        } catch (PDOException $exception) {
+            if ($this->isDeadlockException($exception)) {
+                Log::warning("Deadlock detected in status batch {$this->batchNumber}. Attempt {$this->attempts()}/3. Will retry.", [
+                    'error' => $exception->getMessage(),
+                ]);
+            } else {
+                Log::error("Batch {$this->batchNumber} failed: ".$exception->getMessage());
+            }
+
             throw $exception;
         }
     }
@@ -55,34 +68,30 @@ class ProcessStatusBatchImportJob implements ShouldQueue, Silenced
                str_contains($exception->getMessage(), '40001');
     }
 
-    private function processUpsertBatch(): void
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rows(): array
     {
-        $upsertData = [];
-        $now = now();
+        $now = now()->toDateTimeString();
+        $rows = [];
 
         foreach ($this->batch as $line) {
-            $registration = $line[$this->fieldMap['COD_INMATRICULARE']] ?? null;
-            $status = $line[$this->fieldMap['COD']] ?? null;
+            $registration = trim((string) ($line[$this->fieldMap['COD_INMATRICULARE']] ?? ''));
+            $status = trim((string) ($line[$this->fieldMap['COD']] ?? ''));
 
-            if (! $registration) {
+            if ($registration === '' || $status === '' || isset($rows[$registration])) {
                 continue;
             }
 
-            $upsertData[] = [
+            $rows[$registration] = [
                 'registration' => $registration,
-                'status' => $status,
+                'status' => (int) $status,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
         }
 
-        if (! empty($upsertData)) {
-            // Use upsert for better performance
-            Status::upsert(
-                $upsertData,
-                ['registration'], // unique columns
-                ['status', 'updated_at'] // columns to update
-            );
-        }
+        return array_values($rows);
     }
 }

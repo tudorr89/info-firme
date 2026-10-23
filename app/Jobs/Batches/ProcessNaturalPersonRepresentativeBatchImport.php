@@ -66,6 +66,15 @@ class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Sile
         $insertData = [];
         $now = now();
 
+        $registrations = array_filter(array_map(
+            fn (array $line) => $line[$this->fieldMap['COD_INMATRICULARE']] ?? null,
+            $this->batch
+        ));
+
+        $companies = Company::whereIn('reg_com', $registrations)
+            ->pluck('id', 'reg_com')
+            ->all();
+
         foreach ($this->batch as $line) {
             $registration = $line[$this->fieldMap['COD_INMATRICULARE']] ?? null;
 
@@ -73,11 +82,14 @@ class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Sile
                 continue;
             }
 
-            // Get company_id from registration
-            $company = Company::where('reg_com', $registration)->first();
+            $companyId = $companies[$registration] ?? null;
+
+            if ($companyId === null) {
+                continue;
+            }
 
             $insertData[] = [
-                'company_id' => $company?->id,
+                'company_id' => $companyId,
                 'registration' => $registration,
                 'full_name' => $line[$this->fieldMap['NUME']] ?? null,
                 'role' => $line[$this->fieldMap['CALITATE']] ?? null,
@@ -91,6 +103,7 @@ class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Sile
         }
 
         if (! empty($insertData)) {
+            NaturalPersonRepresentative::whereIn('registration', array_keys($companies))->delete();
             NaturalPersonRepresentative::insert($insertData);
         }
     }

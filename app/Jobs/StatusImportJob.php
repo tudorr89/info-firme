@@ -10,10 +10,10 @@ class StatusImportJob implements ShouldQueue
 {
     use Queueable;
 
-    private const BATCH_SIZE = 1000; // Adjust based on your system
+    private const BATCH_SIZE = 4000;
 
     /** 1 hour for large files. */
-    public int $timeout = 3600;
+    public int $timeout = 1200;
 
     public function __construct(private string $file) {}
 
@@ -29,7 +29,7 @@ class StatusImportJob implements ShouldQueue
         $skipHeader = true;
         $batchCount = 0;
 
-        while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
+        while (($line = fgetcsv($fileStream, 0, '^')) !== false) {
             if ($skipHeader) {
                 $skipHeader = false;
 

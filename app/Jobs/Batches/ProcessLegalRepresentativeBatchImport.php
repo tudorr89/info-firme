@@ -66,6 +66,15 @@ class ProcessLegalRepresentativeBatchImport implements ShouldQueue, Silenced
         $insertData = [];
         $now = now();
 
+        $registrations = array_filter(array_map(
+            fn (array $line) => $line[$this->fieldMap['COD_INMATRICULARE']] ?? null,
+            $this->batch
+        ));
+
+        $companies = Company::whereIn('reg_com', $registrations)
+            ->pluck('id', 'reg_com')
+            ->all();
+
         foreach ($this->batch as $line) {
             $registration = $line[$this->fieldMap['COD_INMATRICULARE']] ?? null;
 
@@ -73,11 +82,14 @@ class ProcessLegalRepresentativeBatchImport implements ShouldQueue, Silenced
                 continue;
             }
 
-            // Get company_id from registration
-            $company = Company::where('reg_com', $registration)->first();
+            $companyId = $companies[$registration] ?? null;
+
+            if ($companyId === null) {
+                continue;
+            }
 
             $insertData[] = [
-                'company_id' => $company?->id,
+                'company_id' => $companyId,
                 'registration' => $registration,
                 'person_name' => $line[$this->fieldMap['PERSOANA_IMPUTERNICITA']] ?? null,
                 'role' => $line[$this->fieldMap['CALITATE']] ?? null,
@@ -94,6 +106,7 @@ class ProcessLegalRepresentativeBatchImport implements ShouldQueue, Silenced
         }
 
         if (! empty($insertData)) {
+            LegalRepresentative::whereIn('registration', array_keys($companies))->delete();
             LegalRepresentative::insert($insertData);
         }
     }

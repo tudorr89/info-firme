@@ -12,7 +12,7 @@ class CaenCompanyImportJob implements ShouldQueue
 {
     use Queueable;
 
-    public $timeout = 7200; // 2 hours
+    public $timeout = 1200;
 
     public $tries = 3;
 
@@ -20,12 +20,14 @@ class CaenCompanyImportJob implements ShouldQueue
 
     public function __construct(private string $file)
     {
-        ini_set('memory_limit', '2G'); // Increased memory
-        set_time_limit(0);
+        //
     }
 
     public function handle(): void
     {
+        ini_set('memory_limit', '2G');
+        set_time_limit(0);
+
         $fieldMap = [
             'COD_INMATRICULARE' => 0,
             'COD_CAEN_AUTORIZAT' => 1,

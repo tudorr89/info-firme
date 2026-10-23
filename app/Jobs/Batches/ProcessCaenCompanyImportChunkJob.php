@@ -12,7 +12,7 @@ class ProcessCaenCompanyImportChunkJob implements ShouldQueue
 {
     use Queueable;
 
-    public $timeout = 1800; // 30 minutes
+    public $timeout = 1200;
 
     public $tries = 3;
 
@@ -20,12 +20,12 @@ class ProcessCaenCompanyImportChunkJob implements ShouldQueue
         private string $chunkFile,
         private array $fieldMap,
         private int $chunkNumber
-    ) {
-        ini_set('memory_limit', '1G'); // Increased memory
-    }
+    ) {}
 
     public function handle(): void
     {
+        ini_set('memory_limit', '1G');
+
         $fileStream = fopen($this->chunkFile, 'r');
 
         if (! $fileStream) {
@@ -34,7 +34,7 @@ class ProcessCaenCompanyImportChunkJob implements ShouldQueue
 
         $jobs = [];
         $processedCount = 0;
-        $batchSize = 500; // Process 500 records per job (reduced from individual records)
+        $batchSize = 2000; // rows per upsert job
 
         $currentBatch = [];
 

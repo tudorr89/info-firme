@@ -2,213 +2,165 @@
 
 namespace App\Jobs\Batches;
 
-use App\Models\Address;
-use App\Models\Company;
+use App\Services\BannedCifService;
+use App\Services\Import\BulkUpsert;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Horizon\Contracts\Silenced;
 use PDOException;
 
+/**
+ * Imports a batch of companies and their addresses.
+ *
+ * Both tables are written with a single statement per chunk (`INSERT ... ON
+ * DUPLICATE KEY UPDATE`), which replaces the previous "select existing ids,
+ * insert the new ones, update the rest one by one" approach. `updated_at` only
+ * moves forward when a compared column actually changed, so a monthly re-import
+ * does not mark the whole table as updated.
+ */
 class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 600;
+    public int $timeout = 600;
 
-    public $tries = 3;
+    public int $tries = 3;
 
-    public $backoff = [1, 5, 10];
+    /** @var array<int, int> */
+    public array $backoff = [1, 5, 10];
 
+    /**
+     * @param  array<int, array<int, string>>  $batchData
+     * @param  array<string, int>  $fieldMap
+     */
     public function __construct(private array $batchData, private array $fieldMap)
     {
         //
     }
 
-    /**
-     * Execute the job - Optimized for insert performance with separate update handling
-     */
     public function handle(): void
     {
         try {
-            DB::transaction(function () {
-                $companyData = [];
-                $addressData = [];
+            $companyRows = $this->companyRows();
 
-                // Pre-filter duplicates within the batch and clean data
-                $processedRegComs = [];
-                $processedEuids = [];
+            if ($companyRows === []) {
+                return;
+            }
 
-                foreach ($this->batchData as $dataLine) {
-                    $regCom = $dataLine[$this->fieldMap['COD_INMATRICULARE']];
-                    $euid = $dataLine[$this->fieldMap['EUID']];
+            BulkUpsert::upsert(
+                'companies',
+                $companyRows,
+                ['name', 'cui', 'type', 'registration_date', 'website', 'parent_country', 'mark'],
+                ['name', 'cui', 'type', 'registration_date', 'website', 'parent_country', 'mark']
+            );
 
-                    // Skip if we've already processed this reg_com or euid in this batch
-                    if (isset($processedRegComs[$regCom]) || isset($processedEuids[$euid])) {
-                        continue;
-                    }
-
-                    $processedRegComs[$regCom] = true;
-                    $processedEuids[$euid] = true;
-
-                    $cui = trim($dataLine[$this->fieldMap['CUI']] ?? '');
-
-                    // Skip records without valid CUI
-                    if (empty($cui)) {
-                        continue;
-                    }
-
-                    // Skip records with CUI in the skip list
-                    if (in_array($cui, config('skip.cifs'))) {
-                        continue;
-                    }
-
-                    $companyData[] = [
-                        'name' => $dataLine[$this->fieldMap['DENUMIRE']],
-                        'cui' => $cui,
-                        'reg_com' => $regCom,
-                        'euid' => $euid,
-                        'type' => $dataLine[$this->fieldMap['FORMA_JURIDICA']],
-                        'registration_date' => $this->parseDate($dataLine[$this->fieldMap['DATA_INMATRICULARE']]),
-                        'website' => $dataLine[$this->fieldMap['WEB']] ?? null,
-                        'parent_country' => $dataLine[$this->fieldMap['TARA_FIRMA_MAMA']] ?? null,
-                        'mark' => $dataLine[$this->fieldMap['MARK']] ?? null,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
-
-                if (empty($companyData)) {
-                    return; // No valid data to process
-                }
-
-                // Optimize: Try bulk insert first (faster than upsert for new records)
-                $existingRegComs = Company::whereIn('reg_com', array_column($companyData, 'reg_com'))
-                    ->pluck('id', 'reg_com')
-                    ->toArray();
-
-                $newCompanies = [];
-                $existingCompanies = [];
-
-                foreach ($companyData as $company) {
-                    if (isset($existingRegComs[$company['reg_com']])) {
-                        $company['id'] = $existingRegComs[$company['reg_com']];
-                        $existingCompanies[] = $company;
-                    } else {
-                        $newCompanies[] = $company;
-                    }
-                }
-
-                // Insert new companies (ignore duplicates on unique constraints)
-                if (! empty($newCompanies)) {
-                    Company::insertOrIgnore($newCompanies);
-                }
-
-                // Update existing companies with only changed fields
-                if (! empty($existingCompanies)) {
-                    foreach ($existingCompanies as $company) {
-                        Company::where('reg_com', $company['reg_com'])->update([
-                            'name' => $company['name'],
-                            'cui' => $company['cui'],
-                            'type' => $company['type'],
-                            'registration_date' => $company['registration_date'],
-                            'website' => $company['website'],
-                            'parent_country' => $company['parent_country'],
-                            'mark' => $company['mark'],
-                            'updated_at' => now(),
-                        ]);
-                    }
-                }
-
-                // Get company IDs for addresses
-                $regComs = array_column($companyData, 'reg_com');
-                $companies = Company::whereIn('reg_com', $regComs)
-                    ->pluck('id', 'reg_com')
-                    ->toArray();
-
-                foreach ($this->batchData as $dataLine) {
-                    $regCom = $dataLine[$this->fieldMap['COD_INMATRICULARE']];
-                    $companyId = $companies[$regCom] ?? null;
-
-                    if ($companyId) {
-                        $addressData[] = [
-                            'company_id' => $companyId,
-                            'country' => $dataLine[$this->fieldMap['ADR_TARA']],
-                            'city' => $dataLine[$this->fieldMap['ADR_LOCALITATE']],
-                            'county' => $dataLine[$this->fieldMap['ADR_JUDET']],
-                            'street' => $dataLine[$this->fieldMap['ADR_DEN_STRADA']],
-                            'number' => $dataLine[$this->fieldMap['ADR_NR_STRADA']],
-                            'block' => $dataLine[$this->fieldMap['ADR_BLOC']],
-                            'scara' => $dataLine[$this->fieldMap['ADR_SCARA']],
-                            'floor' => $dataLine[$this->fieldMap['ADR_ETAJ']],
-                            'apartment' => $dataLine[$this->fieldMap['ADR_APARTAMENT']],
-                            'postalCode' => $dataLine[$this->fieldMap['ADR_COD_POSTAL']],
-                            'sector' => $dataLine[$this->fieldMap['ADR_SECTOR']],
-                            'additional' => $dataLine[$this->fieldMap['ADR_COMPLETARE']],
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ];
-                    }
-                }
-
-                // Optimize address import: separate new and existing
-                if (! empty($addressData)) {
-                    $existingCompanyIds = Address::whereIn('company_id', array_column($addressData, 'company_id'))
-                        ->pluck('company_id')
-                        ->toArray();
-
-                    $newAddresses = [];
-                    $existingAddresses = [];
-
-                    foreach ($addressData as $address) {
-                        if (in_array($address['company_id'], $existingCompanyIds, true)) {
-                            $existingAddresses[] = $address;
-                        } else {
-                            $newAddresses[] = $address;
-                        }
-                    }
-
-                    // Insert new addresses
-                    if (! empty($newAddresses)) {
-                        Address::insert($newAddresses);
-                    }
-
-                    // Update existing addresses
-                    if (! empty($existingAddresses)) {
-                        foreach ($existingAddresses as $address) {
-                            Address::where('company_id', $address['company_id'])->update([
-                                'country' => $address['country'],
-                                'city' => $address['city'],
-                                'county' => $address['county'],
-                                'street' => $address['street'],
-                                'number' => $address['number'],
-                                'block' => $address['block'],
-                                'scara' => $address['scara'],
-                                'floor' => $address['floor'],
-                                'apartment' => $address['apartment'],
-                                'postalCode' => $address['postalCode'],
-                                'sector' => $address['sector'],
-                                'additional' => $address['additional'],
-                                'updated_at' => now(),
-                            ]);
-                        }
-                    }
-                }
-            });
+            BulkUpsert::upsertForCompanies(
+                'addresses',
+                $this->addressRows(),
+                ['country', 'city', 'county', 'street', 'number', 'block', 'scara', 'floor',
+                    'apartment', 'postalCode', 'sector', 'additional'],
+                ['country', 'city', 'county', 'street', 'number', 'block', 'scara', 'floor',
+                    'apartment', 'postalCode', 'sector', 'additional']
+            );
         } catch (PDOException $exception) {
             if ($this->isDeadlockException($exception)) {
                 Log::warning("Deadlock detected in batch import. Attempt {$this->attempts()}/3. Will retry.", [
                     'error' => $exception->getMessage(),
                 ]);
-                throw $exception;
             }
+
             throw $exception;
         }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function companyRows(): array
+    {
+        $now = now()->toDateTimeString();
+        $rows = [];
+        $processedEuids = [];
+
+        foreach ($this->batchData as $dataLine) {
+            $regCom = trim((string) ($dataLine[$this->fieldMap['COD_INMATRICULARE']] ?? ''));
+            $euid = trim((string) ($dataLine[$this->fieldMap['EUID']] ?? ''));
+            $cui = trim((string) ($dataLine[$this->fieldMap['CUI']] ?? ''));
+
+            if ($regCom === '' || $cui === '' || isset($rows[$regCom])) {
+                continue;
+            }
+
+            // EUID is unique in the database: keep the first occurrence so the
+            // upsert can never match a different company through that index.
+            if ($euid !== '' && isset($processedEuids[$euid])) {
+                continue;
+            }
+
+            if (BannedCifService::isBanned($cui)) {
+                continue;
+            }
+
+            $processedEuids[$euid] = true;
+
+            $rows[$regCom] = [
+                'name' => $dataLine[$this->fieldMap['DENUMIRE']],
+                'cui' => $cui,
+                'reg_com' => $regCom,
+                'euid' => $euid,
+                'type' => $dataLine[$this->fieldMap['FORMA_JURIDICA']] ?? null,
+                'registration_date' => $this->parseDate($dataLine[$this->fieldMap['DATA_INMATRICULARE']] ?? null),
+                'website' => $dataLine[$this->fieldMap['WEB']] ?? null,
+                'parent_country' => $dataLine[$this->fieldMap['TARA_FIRMA_MAMA']] ?? null,
+                'mark' => $dataLine[$this->fieldMap['MARK']] ?? null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        return array_values($rows);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function addressRows(): array
+    {
+        $now = now()->toDateTimeString();
+        $rows = [];
+
+        foreach ($this->batchData as $dataLine) {
+            $regCom = trim((string) ($dataLine[$this->fieldMap['COD_INMATRICULARE']] ?? ''));
+
+            if ($regCom === '' || isset($rows[$regCom])) {
+                continue;
+            }
+
+            $rows[$regCom] = [
+                'registration' => $regCom,
+                'country' => $dataLine[$this->fieldMap['ADR_TARA']] ?? null,
+                'city' => $dataLine[$this->fieldMap['ADR_LOCALITATE']] ?? null,
+                'county' => $dataLine[$this->fieldMap['ADR_JUDET']] ?? null,
+                'street' => $dataLine[$this->fieldMap['ADR_DEN_STRADA']] ?? null,
+                'number' => $dataLine[$this->fieldMap['ADR_NR_STRADA']] ?? null,
+                'block' => $dataLine[$this->fieldMap['ADR_BLOC']] ?? null,
+                'scara' => $dataLine[$this->fieldMap['ADR_SCARA']] ?? null,
+                'floor' => $dataLine[$this->fieldMap['ADR_ETAJ']] ?? null,
+                'apartment' => $dataLine[$this->fieldMap['ADR_APARTAMENT']] ?? null,
+                'postalCode' => $dataLine[$this->fieldMap['ADR_COD_POSTAL']] ?? null,
+                'sector' => $dataLine[$this->fieldMap['ADR_SECTOR']] ?? null,
+                'additional' => $dataLine[$this->fieldMap['ADR_COMPLETARE']] ?? null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        return array_values($rows);
     }
 
     private function isDeadlockException(PDOException $exception): bool
@@ -219,7 +171,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
     }
 
     /**
-     * Parse date in DD/MM/YYYY or DD.MM.YYYY format to Y-m-d H:i:s
+     * Parse a date in DD/MM/YYYY or DD.MM.YYYY format to Y-m-d H:i:s.
      */
     private function parseDate(?string $dateStr): ?string
     {
@@ -235,7 +187,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
 
         foreach ($formats as $format) {
             try {
-                return Carbon::createFromFormat($format, $dateStr)->format('Y-m-d H:i:s');
+                return Carbon::createFromFormat($format, $dateStr)->startOfDay()->format('Y-m-d H:i:s');
             } catch (\Exception) {
                 continue;
             }

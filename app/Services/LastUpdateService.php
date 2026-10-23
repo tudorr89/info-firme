@@ -2,19 +2,25 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
 use App\Settings\GeneralSettings;
+use Carbon\Carbon;
 
 class LastUpdateService
 {
-    public static function needsUpdate()
+    public static function needsUpdate(): bool
     {
-        return Carbon::parse(app(GeneralSettings::class)->lastUpdate)->diffInMonths(Carbon::now()) >= 3;
+        $lastUpdate = app(GeneralSettings::class)->lastUpdate ?? null;
+
+        if ($lastUpdate === null) {
+            return true;
+        }
+
+        return Carbon::parse($lastUpdate)->diffInMonths(Carbon::now()) >= 3;
     }
 
-    public static function setDate()
+    public static function setDate(): void
     {
-        $settings = new GeneralSettings();
+        $settings = app(GeneralSettings::class);
         $settings->lastUpdate = Carbon::now();
         $settings->save();
     }

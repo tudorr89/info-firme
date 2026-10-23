@@ -5,54 +5,56 @@ namespace App\Jobs;
 use App\Models\CaenVersion;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
 class CaenVersionImportJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * Create a new job instance.
-     */
+    public int $timeout = 600;
+
+    public int $tries = 3;
+
     public function __construct(private string $file)
     {
         //
     }
 
     /**
-     * Execute the job.
+     * CSV structure: COD^DESCRIERE
      */
     public function handle(): void
     {
-        //COD^DESCRIERE
-        $fieldMap = [
-            'COD'       => 0,
-            'DESCRIERE' => 1,
-        ];
-
-        // Open the file for reading
         $fileStream = fopen($this->file, 'r');
 
+        if ($fileStream === false) {
+            Log::error("Cannot open CAEN version file: {$this->file}");
+
+            return;
+        }
+
         $skipHeader = true;
-        while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
+
+        while (($line = fgetcsv($fileStream, 0, '^')) !== false) {
             if ($skipHeader) {
-                // Skip the header
                 $skipHeader = false;
+
                 continue;
             }
-            CaenVersion::firstOrCreate(
-                [
-                    'code'  => $line[$fieldMap['COD']],
-                ],
-                [
-                    'name'  => $line[$fieldMap['DESCRIERE']],
 
-                ]
+            $code = trim($line[0] ?? '');
+            $name = trim($line[1] ?? '');
+
+            if ($code === '' || $name === '') {
+                continue;
+            }
+
+            CaenVersion::updateOrCreate(
+                ['code' => (int) $code],
+                ['name' => $name]
             );
         }
 
         fclose($fileStream);
-
-        // Delete the file after import
-        //unlink($this->file);
     }
 }

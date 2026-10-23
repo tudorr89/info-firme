@@ -13,9 +13,9 @@ class EUBranchImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 3600;
+    public int $timeout = 1200;
 
-    private const BATCH_SIZE = 1000;
+    private const BATCH_SIZE = 4000;
 
     public function __construct(private string $file)
     {
@@ -38,7 +38,7 @@ class EUBranchImportJob implements ShouldQueue
         $skipHeader = true;
         $batchCount = 0;
 
-        while (($line = fgetcsv($fileStream, 1000, '^')) !== false) {
+        while (($line = fgetcsv($fileStream, 0, '^')) !== false) {
             if ($skipHeader) {
                 $skipHeader = false;
 
