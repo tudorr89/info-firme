@@ -13,9 +13,11 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('download:csv')->monthlyOn(15, '03:00');
-        $schedule->command('import:auto')->dailyAt('02:00');
-        $schedule->command('sitemap:generate')->dailyAt('03:00')->withoutOverlapping();
+        $schedule->command('onrc:download')->monthlyOn(15, '02:00');
+        $schedule->command('import:all')->monthlyOn(15, '03:00')->withoutOverlapping();
+        $schedule->command('companies:link')->dailyAt('04:00')->withoutOverlapping();
+        $schedule->command('companies:link --prune')->monthlyOn(16, '04:00')->withoutOverlapping();
+        $schedule->command('sitemap:generate')->monthlyOn(15, '05:00')->withoutOverlapping();
         $schedule->command('horizon:snapshot')->everyFiveMinutes();
     }
 

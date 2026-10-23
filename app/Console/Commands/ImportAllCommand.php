@@ -2,88 +2,83 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\LinkCompanyDataJob;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
 
 class ImportAllCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     */
-    protected $signature = 'import:all {--dir=storage/app/imports : Directory containing CSV files}';
+    protected $signature = 'import:all
+        {--dir= : Directory containing the CSV files (defaults to the configured import directory)}
+        {--link-delay=60 : Minutes to wait before backfilling the company links}';
 
-    /**
-     * The console command description.
-     */
-    protected $description = 'Import all CSV files (companies, statuses, representatives, EU branches)';
+    protected $description = 'Import all downloaded ONRC CSV files (companies, nomenclators, statuses, representatives, EU branches, CAEN)';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle(): void
+    public function handle(): int
     {
-        $dir = $this->option('dir');
-
-        $requiredFiles = [
-            'companies' => 'od_firme.csv',
-            'status' => 'od_stare_firma.csv',
-            'legal-representatives' => 'od_reprezentanti_legali.csv',
-            'natural-persons' => 'od_reprezentanti_if.csv',
-            'eu-branches' => 'od_sucursale_alte_state_membre.csv',
-        ];
-
-        $optionalFiles = [
-            'caen-definition' => 'n_caen.csv',
-            'caen-version' => 'n_caen_versiune.csv',
-            'caen-company' => 'od_caen_autorizat.csv',
-        ];
+        $disk = Storage::disk(config('import.disk'));
+        $directory = $this->option('dir')
+            ? rtrim((string) $this->option('dir'), '/')
+            : $disk->path((string) config('import.directory'));
 
         $this->output->title('Starting full import');
-        $this->output->info("Using directory: $dir");
+        $this->output->info("Using directory: {$directory}");
 
-        $missingRequired = [];
-        foreach ($requiredFiles as $name => $filename) {
-            $path = "$dir/$filename";
-            if (! file_exists($path)) {
-                $missingRequired[] = "$filename ($name)";
+        /** @var array<string, string> $files */
+        $files = config('import.files');
+
+        $available = [];
+        $missing = [];
+
+        foreach ($files as $filename => $command) {
+            if (is_file("{$directory}/{$filename}")) {
+                $available[$filename] = $command;
+
+                continue;
             }
+
+            $missing[] = $filename;
         }
 
-        if (! empty($missingRequired)) {
-            $this->error('Missing required CSV files:');
-            foreach ($missingRequired as $file) {
-                $this->error("  - $file");
-            }
+        if ($available === []) {
+            $this->error('No importable CSV files found in '.$directory);
+
+            return self::FAILURE;
+        }
+
+        foreach ($missing as $filename) {
+            $this->output->warning("Skipping missing file: {$filename}");
+        }
+
+        foreach ($available as $filename => $command) {
+            $this->output->info("Dispatching {$command} for {$filename}");
+            $this->call($command, ['file' => "{$directory}/{$filename}"]);
+        }
+
+        $this->queueLinkBackfill();
+
+        $this->output->success('All import jobs dispatched successfully!');
+        $this->output->note('Monitor progress on the Horizon dashboard at: /admin/horizon');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Related files are imported in parallel with the company file, so the
+     * `company_id` backfill is queued with a delay and is idempotent.
+     */
+    private function queueLinkBackfill(): void
+    {
+        $delay = (int) $this->option('link-delay');
+
+        if ($delay <= 0) {
+            $this->output->info('Link backfill disabled');
 
             return;
         }
 
-        $this->info('All required CSV files found. Dispatching import jobs...');
+        $this->output->info("Queueing the company link backfill in {$delay} minute(s)");
 
-        $this->call('import:companies', ['file' => "$dir/od_firme.csv"]);
-        $this->call('import:status', ['file' => "$dir/od_stare_firma.csv"]);
-        $this->call('import:legal-representatives', ['file' => "$dir/od_reprezentanti_legali.csv"]);
-        $this->call('import:natural-persons', ['file' => "$dir/od_reprezentanti_if.csv"]);
-        $this->call('import:eu-branches', ['file' => "$dir/od_sucursale_alte_state_membre.csv"]);
-
-        // Import optional CAEN files if available
-        $caenFilesFound = 0;
-        foreach ($optionalFiles as $name => $filename) {
-            $path = "$dir/$filename";
-            if (file_exists($path)) {
-                $this->call("import:$name", ['file' => $path]);
-                $caenFilesFound++;
-            }
-        }
-
-        if ($caenFilesFound === 0) {
-            $this->output->warning('CAEN files not found. To import CAEN classifications, download:');
-            $this->output->warning('  - n_caen.csv (CAEN definitions)');
-            $this->output->warning('  - n_caen_versiune.csv (CAEN versions)');
-            $this->output->warning('  - od_caen_autorizat.csv (Company CAEN links)');
-            $this->output->warning('Then run: php artisan import:caen-definition <file>');
-        }
-
-        $this->output->success('All import jobs dispatched successfully!');
-        $this->output->note('Monitor progress on the Horizon dashboard at: /horizon');
+        LinkCompanyDataJob::dispatch()->delay(now()->addMinutes($delay));
     }
 }

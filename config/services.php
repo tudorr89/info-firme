@@ -37,4 +37,12 @@ return [
         'timeout' => (int) env('ENRICH_TIMEOUT', 60),
     ],
 
+    'onrc' => [
+        'organization' => env('ONRC_ORGANIZATION', 'onrc'),
+        'api_base_url' => env('ONRC_API_URL', 'https://data.gov.ro/api/3/action'),
+        'timeout' => (int) env('ONRC_TIMEOUT', 30),
+        'download_timeout' => (int) env('ONRC_DOWNLOAD_TIMEOUT', 1800),
+        'download_retries' => (int) env('ONRC_DOWNLOAD_RETRIES', 3),
+    ],
+
 ];

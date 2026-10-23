@@ -2,47 +2,50 @@
 
 namespace App\Console\Commands;
 
+use App\Services\LastUpdateService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
-use App\Jobs\NomenclatorImportJob;
-use App\Jobs\CompanyImportJob;
-use App\Services\LastUpdateService;
 
 class AutoCSVImportCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'import:auto';
+    protected $signature = 'import:auto {--force : Import even when an update is not due}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Import the CSV files from the storage/csv folder to DB.';
+    protected $description = 'Import the downloaded ONRC CSV files from the import directory when an update is due.';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(): int
     {
-        $files = Storage::files('csv');
-        if(count($files) == 0 || LastUpdateService::needsUpdate() == false) {
-            $this->info('No files to import or update not yet needed.');
-            return;
+        $available = $this->availableFiles();
+
+        if ($available === []) {
+            $this->info('No files available to import.');
+
+            return self::SUCCESS;
         }
 
-        foreach($files as $file) {
-            if(str_contains($file, 'nomeclator')) {
-                dispatch(new NomenclatorImportJob(storage_path('app/'.$file)));
-            } else {
-                dispatch(new CompanyImportJob(storage_path('app/'.$file)));
-            }
+        if (! $this->option('force') && ! LastUpdateService::needsUpdate()) {
+            $this->info('Import not yet due - skipping.');
+
+            return self::SUCCESS;
         }
+
+        $this->call('import:all');
 
         LastUpdateService::setDate();
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function availableFiles(): array
+    {
+        $disk = Storage::disk(config('import.disk'));
+        $directory = config('import.directory');
+
+        return array_values(array_filter(
+            array_keys(config('import.files')),
+            fn (string $filename) => $disk->exists("{$directory}/{$filename}")
+        ));
     }
 }
