@@ -212,10 +212,12 @@ RUN php artisan view:cache \
 RUN bun run build
 
 # Only what is written at runtime needs to be owned by the app user: storage/,
-# bootstrap/cache/ and public/ (storage:link + Vite build output). Recursively
+# bootstrap/cache/, public/ (storage:link + Vite build output) and the XDG
+# dirs Caddy/FrankenPHP writes to (config autosave + instance ID). Recursively
 # chowning vendor/ forced a copy-up into a new layer and added ~80s per build.
-RUN chown ${USER_ID}:${GROUP_ID} ${ROOT} \
-    && chown -R ${USER_ID}:${GROUP_ID} storage bootstrap/cache public
+RUN mkdir -p ${ROOT}/.config ${ROOT}/.data \
+    && chown ${USER_ID}:${GROUP_ID} ${ROOT} \
+    && chown -R ${USER_ID}:${GROUP_ID} storage bootstrap/cache public .config .data
 
 USER ${USER}
 
