@@ -3,10 +3,14 @@
 namespace App\Livewire;
 
 use App\Models\Company;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
+/**
+ * @property-read Collection<int, Company> $topResults
+ */
 #[Layout('layouts.app')]
 class CompanySearch extends Component
 {
@@ -26,8 +30,8 @@ class CompanySearch extends Component
         }
 
         return Company::query()
-            ->where(function ($q) {
-                $q->where('cui', $this->search)
+            ->where(function ($query) {
+                $query->where('cui', $this->search)
                     ->orWhere('name', 'like', '%'.$this->search.'%');
             })
             ->orderBy('registration_date', 'desc')

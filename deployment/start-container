@@ -1,61 +1,92 @@
 #!/usr/bin/env sh
-set -e
+#
+# Container entrypoint.
+#
+# Caches are built here (not in the Dockerfile) on purpose: config:cache bakes
+# the *runtime* environment, so baking it at build time would ignore env vars
+# injected by the orchestrator.
+
+set -eu
 
 container_mode=${CONTAINER_MODE:-"http"}
 running_migrations_and_seeders=${RUNNING_MIGRATIONS_AND_SEEDERS:-"false"}
 
 initialStuff() {
-    echo "Container mode: $container_mode"
-    
+    echo "Container mode: ${container_mode}"
+
     if [ "${running_migrations_and_seeders}" = "true" ]; then
         echo "Running migrations and seeding database ..."
         php artisan migrate --isolated --seed --force || php artisan migrate --seed --force
     fi
-	
-    php artisan storage:link; \
-    php artisan optimize;
+
+    php artisan storage:link
+
+    # Clear first: `route:cache` (inside `optimize`) fails with a
+    # CompiledRouteCollection type error when a route cache is already present.
+    # A container restart keeps bootstrap/cache, so optimizing twice in a row
+    # used to crash the container and, with restart=always, crash-loop it.
+    php artisan optimize:clear
+
+    # Rebuild config + events + routes + views + Filament caches in one go.
+    php artisan optimize
 }
 
-if [ "$1" != "" ]; then
+if [ "$#" -gt 0 ]; then
     exec "$@"
-elif [ "${container_mode}" = "http" ]; then
-    initialStuff
-    echo "Octane Server: $OCTANE_SERVER"
-
-    if [ "$(php artisan tinker --execute="echo config('inertia.ssr.enabled');")" = "1" ]; then
-        echo "Inertia SSR Server url: $(php artisan tinker --execute="echo config('inertia.ssr.url');")"
-    fi
-    
-    if [ "${OCTANE_SERVER}" = "frankenphp" ]; then
-        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.frankenphp.conf
-    elif [ "${OCTANE_SERVER}" = "swoole" ]; then
-        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.swoole.conf
-    elif [ "${OCTANE_SERVER}" = "roadrunner" ]; then
-        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.roadrunner.conf
-    else
-        echo "Invalid Octane server supplied."
-        exit 1
-    fi
-elif [ "${container_mode}" = "horizon" ]; then
-    initialStuff
-    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.horizon.conf
-elif [ "${container_mode}" = "reverb" ]; then
-    initialStuff
-    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.reverb.conf
-elif [ "${container_mode}" = "ssr" ]; then
-    initialStuff
-    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.inertia.conf
-elif [ "${container_mode}" = "scheduler" ]; then
-    initialStuff
-    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.scheduler.conf
-elif [ "${container_mode}" = "worker" ]; then
-    if [ -z "${WORKER_COMMAND}" ]; then
-        echo "WORKER_COMMAND is undefined."
-        exit 1
-    fi
-    initialStuff
-    exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.worker.conf
-else
-    echo "Container mode mismatched."
-    exit 1
 fi
+
+case "${container_mode}" in
+    http)
+        initialStuff
+        echo "Octane server: ${OCTANE_SERVER:-frankenphp}"
+
+        if [ "$(php artisan tinker --execute="echo config('inertia.ssr.enabled');")" = "1" ]; then
+            echo "Inertia SSR server url: $(php artisan tinker --execute="echo config('inertia.ssr.url');")"
+        fi
+
+        case "${OCTANE_SERVER:-frankenphp}" in
+            frankenphp)
+                exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.frankenphp.conf
+                ;;
+            swoole)
+                exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.swoole.conf
+                ;;
+            roadrunner)
+                exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.roadrunner.conf
+                ;;
+            *)
+                echo "Invalid Octane server supplied: ${OCTANE_SERVER}"
+                exit 1
+                ;;
+        esac
+        ;;
+    horizon)
+        initialStuff
+        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.horizon.conf
+        ;;
+    reverb)
+        initialStuff
+        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.reverb.conf
+        ;;
+    ssr)
+        initialStuff
+        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.inertia.conf
+        ;;
+    scheduler)
+        initialStuff
+        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.scheduler.conf
+        ;;
+    worker)
+        if [ -z "${WORKER_COMMAND:-}" ]; then
+            echo "WORKER_COMMAND is undefined."
+            exit 1
+        fi
+
+        initialStuff
+        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.worker.conf
+        ;;
+    *)
+        echo "Container mode mismatched: ${container_mode}"
+        exit 1
+        ;;
+esac

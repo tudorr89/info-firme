@@ -31,4 +31,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'anaf' => [
+        'enrich' => (bool) env('ENRICH', false),
+        'batch_size' => (int) env('ANAF_BATCH_SIZE', 100),
+        'timeout' => (int) env('ENRICH_TIMEOUT', 60),
+    ],
+
 ];

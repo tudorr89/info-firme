@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Processors\AnafProcessor;
 use App\Services\AnafEnrichmentService;
 use Illuminate\Console\Command;
 
@@ -27,9 +26,10 @@ class AnafEnrichmentCommand extends Command
      */
     public function handle()
     {
-        if(env('ENRICH') == 'true') {
-            $anafEnrichmentService = new AnafEnrichmentService();
-            return $anafEnrichmentService->enrich();
+        if (config('services.anaf.enrich')) {
+            $service = new AnafEnrichmentService;
+
+            return $service->enrich();
         }
     }
 }

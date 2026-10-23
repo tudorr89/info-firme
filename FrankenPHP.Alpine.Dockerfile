@@ -1,26 +1,43 @@
-# Pinned to PHP 8.4.27 (fixes CVE-2026-109618 / CVE-2026-109619)
+# syntax=docker/dockerfile:1
+#
+# Build order matters: everything below is ordered from "changes almost never"
+# to "changes on every commit" so BuildKit can reuse expensive layers (PHP
+# extensions, composer install, frontend build) between deploys.
+
+# Pinned to PHP 8.4.27 (Laravel 13 needs the Pdo\Mysql class; also fixes
+# CVE-2026-109618 / CVE-2026-109619).
 ARG PHP_VERSION=8.4.27
 ARG FRANKENPHP_VERSION=1.13.2
-ARG COMPOSER_VERSION=2.8
-ARG GIT_COMMIT_HASH
-ARG GIT_COMMIT_DATE
+ARG COMPOSER_VERSION=2.9
+ARG BUN_VERSION=1.4.2
+ARG SUPERCRONIC_VERSION=0.2.49
 
-FROM composer:${COMPOSER_VERSION} AS vendor
+###########################################
+# Rebuild FrankenPHP with brotli support and a smaller binary
+###########################################
 
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php${PHP_VERSION}-alpine AS upstream
 
 COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 
-RUN CGO_ENABLED=1 \
+# Persistent Go caches: a version bump recompiles FrankenPHP in ~1min instead
+# of re-downloading the whole module graph and rebuilding Caddy from scratch.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/REDACTED/.cache/go-build \
+    CGO_ENABLED=1 \
     XCADDY_SETCAP=1 \
     XCADDY_GO_BUILD_FLAGS="-ldflags='-w -s' -tags=nobadger,nomysql,nopgx" \
     CGO_CFLAGS=$(php-config --includes) \
     CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs)" \
     xcaddy build \
-        --output /usr/local/bin/frankenphp \
-        --with github.com/dunglas/frankenphp=./ \
-        --with github.com/dunglas/frankenphp/caddy=./caddy/ \
-        --with github.com/dunglas/caddy-cbrotli
+    --output /usr/local/bin/frankenphp \
+    --with github.com/dunglas/frankenphp=./ \
+    --with github.com/dunglas/frankenphp/caddy=./caddy/ \
+    --with github.com/dunglas/caddy-cbrotli
+
+###########################################
+
+FROM composer:${COMPOSER_VERSION} AS vendor
 
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}-alpine
 
@@ -35,7 +52,11 @@ LABEL org.opencontainers.image.licenses=MIT
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG TZ=UTC
-ARG BUN_VERSION=1.4.2
+ARG ENV_FILE=.env
+ARG APP_ENV=production
+ARG BUN_VERSION
+# Re-declared here: a global ARG is only visible in FROM lines otherwise.
+ARG SUPERCRONIC_VERSION
 ARG GIT_COMMIT_HASH=unknown
 ARG GIT_COMMIT_DATE=unknown
 
@@ -44,9 +65,10 @@ ENV TERM=xterm-color \
     GIT_COMMIT_DATE=${GIT_COMMIT_DATE} \
     OCTANE_SERVER=frankenphp \
     TZ=${TZ} \
+    LANG=C.UTF-8 \
     USER=laravel \
     ROOT=/var/www/html \
-    APP_ENV=production \
+    APP_ENV=${APP_ENV} \
     COMPOSER_FUND=0 \
     COMPOSER_MAX_PARALLEL_HTTP=48 \
     WITH_HORIZON=false \
@@ -63,22 +85,34 @@ SHELL ["/bin/sh", "-eou", "pipefail", "-c"]
 RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
     && echo ${TZ} > /etc/timezone
 
-RUN apk update; \
-    apk upgrade; \
-    apk add \
+# `apk upgrade` is intentionally NOT used: it changes this layer whenever the
+# Alpine repositories move, which invalidates every layer below it (most
+# importantly the install-php-extensions layer). Security updates come from
+# bumping the pinned PHP_VERSION / FRANKENPHP_VERSION base images.
+# The cache mount keeps the package index + .apk files between builds.
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk update \
+    && apk add \
+    bash \
+    ca-certificates \
     curl \
-    wget \
-    vim \
-    tzdata \
+    git \
+    libsodium-dev \
     ncdu \
     procps \
-    unzip \
-    ca-certificates \
-    bash \
     supervisor \
-    libsodium-dev \
-    && curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr bash -s "bun-v${BUN_VERSION}" \
-    && install-php-extensions \
+    tzdata \
+    unzip \
+    vim \
+    wget \
+    && rm -rf /tmp/* /var/tmp/*
+
+RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr bash -s "bun-v${BUN_VERSION}" \
+    && rm -rf /tmp/* /var/tmp/*
+
+# Install PHP extensions (dunglas/frankenphp already ships the toolchain).
+# MAKEFLAGS lets every extension build use all CPUs available to the builder.
+RUN MAKEFLAGS="-j$(nproc)" install-php-extensions \
     bz2 \
     pcntl \
     mbstring \
@@ -91,7 +125,6 @@ RUN apk update; \
     intl \
     gd \
     redis \
-    && docker-php-source delete \
     && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
 
 RUN arch="$(apk --print-arch)" \
@@ -102,14 +135,18 @@ RUN arch="$(apk --print-arch)" \
     x86) _cronic_fname='supercronic-linux-386' ;; \
     *) echo >&2 "error: unsupported architecture: $arch"; exit 1 ;; \
     esac \
-    && wget -q "https://github.com/aptible/supercronic/releases/download/v0.2.38/${_cronic_fname}" \
-    -O /usr/bin/supercronic \
+    && curl -fsSL "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/${_cronic_fname}" \
+    -o /usr/bin/supercronic \
     && chmod +x /usr/bin/supercronic \
     && mkdir -p /etc/supercronic \
     && echo "*/1 * * * * php ${ROOT}/artisan schedule:run --no-interaction" > /etc/supercronic/laravel
 
 RUN addgroup -g ${GROUP_ID} ${USER} \
-    && adduser -D -G ${USER} -u ${USER_ID} -s /bin/sh ${USER}
+    && adduser -D -h ${ROOT} -G ${USER} -u ${USER_ID} -s /bin/sh ${USER}
+
+# Hardening: drop SUID/SGID bits from the base image once. Running this in its
+# own early layer keeps it cached instead of re-scanning on every app build.
+RUN { find / -xdev \( -perm -4000 -o -perm -2000 \) -type f -exec chmod a-s {} + 2>/dev/null || true; }
 
 RUN cp ${PHP_INI_DIR}/php.ini-production ${PHP_INI_DIR}/php.ini
 
@@ -120,21 +157,34 @@ COPY --link deployment/supervisord.*.conf /etc/supervisor/conf.d/
 COPY --link deployment/start-container /usr/local/bin/start-container
 COPY --link deployment/healthcheck /usr/local/bin/healthcheck
 COPY --link deployment/php.ini ${PHP_INI_DIR}/conf.d/99-php.ini
+# FrankenPHP's embedded PHP reads this one.
+COPY --link deployment/php.ini /lib/php.ini
+
 COPY --link --chown=${USER_ID}:${GROUP_ID} composer.* ./
 
-RUN composer install \
+# Composer tarballs live in a BuildKit cache, not in the image, so a lockfile
+# change only re-downloads what actually changed.
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache composer install \
     --no-dev \
     --no-interaction \
     --no-autoloader \
-    --no-ansi \
     --no-scripts \
     --no-progress
 
 COPY --link --chown=${USER_ID}:${GROUP_ID} package.json bun.lock* ./
 
-RUN bun install --frozen-lockfile
+# Keep Bun's tarball cache between builds (it is not part of the image).
+RUN --mount=type=cache,target=/REDACTED/.bun/install/cache \
+    bun install --frozen-lockfile
 
 COPY --link --chown=${USER_ID}:${GROUP_ID} . .
+
+# Laravel prefers .env.{APP_ENV} over .env. Stale env files copied from the
+# build context used to shadow the selected ENV_FILE; keep .env as the single
+# baked environment file.
+RUN rm -f .env .env.local .env.production .env.staging .env.testing .env.preview
+COPY --link --chown=${USER_ID}:${GROUP_ID} ${ENV_FILE:-.env} .env
 
 RUN mkdir -p \
     storage/framework/sessions \
@@ -143,20 +193,29 @@ RUN mkdir -p \
     storage/framework/testing \
     storage/logs \
     bootstrap/cache \
-    && chmod +x /usr/local/bin/start-container /usr/local/bin/healthcheck
+    /tmp/opcache-file-cache \
+    && chmod +x /usr/local/bin/start-container /usr/local/bin/healthcheck \
+    && rm -f bootstrap/cache/*.php
 
+# One autoload dump instead of a second full composer install; the dump runs
+# the post-autoload-dump hooks (package discovery, Filament assets).
 RUN composer dump-autoload \
     --optimize \
-    --apcu \
-    --no-dev
+    --no-dev \
+    && composer clear-cache
+
+# Compile views and Filament components at build time as a smoke test; the
+# entrypoint clears and rebuilds them at runtime so injected env vars win.
+RUN php artisan view:cache \
+    && php artisan filament:optimize
 
 RUN bun run build
 
-RUN chown -R ${USER_ID}:${GROUP_ID} \
-    ${ROOT}/vendor \
-    ${ROOT}/public \
-    ${ROOT}/bootstrap/cache \
-    ${ROOT}/storage
+# Only what is written at runtime needs to be owned by the app user: storage/,
+# bootstrap/cache/ and public/ (storage:link + Vite build output). Recursively
+# chowning vendor/ forced a copy-up into a new layer and added ~80s per build.
+RUN chown ${USER_ID}:${GROUP_ID} ${ROOT} \
+    && chown -R ${USER_ID}:${GROUP_ID} storage bootstrap/cache public
 
 USER ${USER}
 
@@ -166,4 +225,7 @@ EXPOSE 8080
 
 ENTRYPOINT ["start-container"]
 
-HEALTHCHECK --start-period=5s --interval=1s --timeout=3s --retries=10 CMD healthcheck || exit 1
+# `php artisan octane:status` boots Laravel for every probe; with the old 1s
+# interval that kept a core busy. The script now hits /up through an existing
+# worker, every 30s.
+HEALTHCHECK --start-period=30s --interval=30s --timeout=5s --retries=3 CMD healthcheck || exit 1

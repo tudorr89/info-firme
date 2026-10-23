@@ -59,7 +59,7 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                     $cui = trim($dataLine[$this->fieldMap['CUI']] ?? '');
 
                     // Skip records without valid CUI
-                    if (empty($cui) || $cui === '0') {
+                    if (empty($cui)) {
                         continue;
                     }
 
@@ -200,22 +200,22 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
                     }
                 }
             });
-        } catch (PDOException $e) {
-            if ($this->isDeadlockException($e)) {
+        } catch (PDOException $exception) {
+            if ($this->isDeadlockException($exception)) {
                 Log::warning("Deadlock detected in batch import. Attempt {$this->attempts()}/3. Will retry.", [
-                    'error' => $e->getMessage(),
+                    'error' => $exception->getMessage(),
                 ]);
-                throw $e;
+                throw $exception;
             }
-            throw $e;
+            throw $exception;
         }
     }
 
-    private function isDeadlockException(PDOException $e): bool
+    private function isDeadlockException(PDOException $exception): bool
     {
-        return str_contains($e->getMessage(), 'Deadlock') ||
-               str_contains($e->getMessage(), '1213') ||
-               str_contains($e->getMessage(), '40001');
+        return str_contains($exception->getMessage(), 'Deadlock') ||
+               str_contains($exception->getMessage(), '1213') ||
+               str_contains($exception->getMessage(), '40001');
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Jobs\Batches;
 
 use App\Models\Company;
 use App\Models\NaturalPersonRepresentative;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -47,17 +48,17 @@ class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Sile
             }
             Log::error("Natural Person Representatives Batch {$this->batchNumber} failed: ".$e->getMessage());
             throw $e;
-        } catch (\Exception $e) {
-            Log::error("Natural Person Representatives Batch {$this->batchNumber} failed: ".$e->getMessage());
-            throw $e;
+        } catch (\Exception $exception) {
+            Log::error("Natural Person Representatives Batch {$this->batchNumber} failed: ".$exception->getMessage());
+            throw $exception;
         }
     }
 
-    private function isDeadlockException(PDOException $e): bool
+    private function isDeadlockException(PDOException $exception): bool
     {
-        return str_contains($e->getMessage(), 'Deadlock') ||
-               str_contains($e->getMessage(), '1213') ||
-               str_contains($e->getMessage(), '40001');
+        return str_contains($exception->getMessage(), 'Deadlock') ||
+               str_contains($exception->getMessage(), '1213') ||
+               str_contains($exception->getMessage(), '40001');
     }
 
     private function processBatch(): void
@@ -105,11 +106,11 @@ class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Sile
         try {
             // Try format with timestamp first (d/m/Y H:i:s)
             if (str_contains($dateStr, ' ')) {
-                return \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $dateStr)->toDateString();
+                return Carbon::createFromFormat('d/m/Y H:i:s', $dateStr)->toDateString();
             }
 
             // Fall back to date only format (d/m/Y)
-            return \Carbon\Carbon::createFromFormat('d/m/Y', $dateStr)->toDateString();
+            return Carbon::createFromFormat('d/m/Y', $dateStr)->toDateString();
         } catch (\Exception) {
             return null;
         }

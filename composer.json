@@ -2,10 +2,13 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
     "require": {
-        "php": "^8.1",
+        "php": "^8.4",
         "filament/filament": "^4.0",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^13.0",
@@ -15,7 +18,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "opcodesio/log-viewer": "^3.18",
-        "predis/predis": "^2.2",
+        "predis/predis": "^3.0",
         "sentry/sentry-laravel": "^4.13",
         "spatie/laravel-settings": "^3.3"
     },
@@ -26,8 +29,10 @@
         "laravel/sail": "^1.18",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
-        "phpunit/phpunit": "^11.0",
-        "spatie/laravel-ignition": "^2.0"
+        "phpunit/phpunit": "^13.0",
+        "spatie/laravel-ignition": "^2.0",
+        "larastan/larastan": "^3.0",
+        "phpmd/phpmd": "^3.0"
     },
     "autoload": {
         "psr-4": {
@@ -55,6 +60,12 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "analyse": "phpstan analyse --memory-limit=1G --no-progress",
+        "phpmd": "phpmd app,config,database,routes text rulesets.xml",
+        "lint": [
+            "@analyse",
+            "@phpmd"
         ]
     },
     "extra": {
@@ -69,6 +80,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.4.27"
         }
     },
     "minimum-stability": "beta",

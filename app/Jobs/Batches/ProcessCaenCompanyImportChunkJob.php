@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Batches;
 
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Bus;
@@ -12,6 +13,7 @@ class ProcessCaenCompanyImportChunkJob implements ShouldQueue
     use Queueable;
 
     public $timeout = 1800; // 30 minutes
+
     public $tries = 3;
 
     public function __construct(
@@ -26,8 +28,8 @@ class ProcessCaenCompanyImportChunkJob implements ShouldQueue
     {
         $fileStream = fopen($this->chunkFile, 'r');
 
-        if (!$fileStream) {
-            throw new \Exception("Cannot open chunk file: {$this->chunkFile}");
+        if (! $fileStream) {
+            throw new Exception("Cannot open chunk file: {$this->chunkFile}");
         }
 
         $jobs = [];
@@ -58,13 +60,13 @@ class ProcessCaenCompanyImportChunkJob implements ShouldQueue
         }
 
         // Process remaining records
-        if (!empty($currentBatch)) {
+        if (! empty($currentBatch)) {
             $jobs[] = new ProcessCaenCompanyImportJob($currentBatch, $this->fieldMap);
             $processedCount += count($currentBatch);
         }
 
         // Process remaining jobs
-        if (!empty($jobs)) {
+        if (! empty($jobs)) {
             Bus::batch($jobs)
                 ->name("CAEN Chunk #{$this->chunkNumber} Final Batch")
                 ->allowFailures()

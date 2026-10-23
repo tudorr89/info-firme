@@ -1,42 +1,50 @@
 #!/usr/bin/env sh
+#
+# Health probe.
+#
+# The old version ran `php artisan octane:status` on every probe; together with
+# Docker's 1s interval that kept a core busy. For HTTP we now knock on /up
+# (served by an already-booted Octane worker) and the supervisor-managed
+# containers just ask supervisorctl over its unix socket.
 
-set -e
+set -eu
 
 container_mode=${CONTAINER_MODE:-"http"}
+healthcheck_path=${HEALTHCHECK_PATH:-"/up"}
+healthcheck_port=${OCTANE_PORT:-8000}
+healthcheck_host=${HEALTHCHECK_HOST:-"127.0.0.1"}
 
-if [ "${container_mode}" = "http" ]; then
-    php "${ROOT}/artisan" octane:status
-elif [ "${container_mode}" = "horizon" ]; then
-    php "${ROOT}/artisan" horizon:status
-elif [ "${container_mode}" = "scheduler" ]; then
-    if [ "$(supervisorctl status scheduler:scheduler_0 | awk '{print tolower($2)}')" = "running" ]; then
+check_supervisor_program() {
+    if supervisorctl -s "unix:///tmp/supervisor.sock" status "$1" 2>/dev/null | grep -q "RUNNING"; then
         exit 0
-    else
-        echo "Healthcheck failed."
-        exit 1
     fi
-elif [ "${container_mode}" = "reverb" ]; then
-    if [ "$(supervisorctl status reverb:reverb_0 | awk '{print tolower($2)}')" = "running" ]; then
-        exit 0
-    else
-        echo "Healthcheck failed."
-        exit 1
-    fi
-elif [ "${container_mode}" = "ssr" ]; then
-    if [ "$(supervisorctl status inertia-ssr-server:inertia-ssr-server_0 | awk '{print tolower($2)}')" = "running" ]; then
-        exit 0
-    else
-        echo "Healthcheck failed."
-        exit 1
-    fi
-elif [ "${container_mode}" = "worker" ]; then
-    if [ "$(supervisorctl status worker:worker_0 | awk '{print tolower($2)}')" = "running" ]; then
-        exit 0
-    else
-        echo "Healthcheck failed."
-        exit 1
-    fi
-else
-    echo "Container mode mismatched."
+
+    echo "Healthcheck failed: $1 is not running."
     exit 1
-fi
+}
+
+case "${container_mode}" in
+    http)
+        curl -fsS --max-time 3 -o /dev/null \
+            "http://${healthcheck_host}:${healthcheck_port}${healthcheck_path}"
+        ;;
+    horizon)
+        check_supervisor_program "horizon:horizon_0"
+        ;;
+    scheduler)
+        check_supervisor_program "scheduler:scheduler_0"
+        ;;
+    worker)
+        check_supervisor_program "worker:worker_0"
+        ;;
+    reverb)
+        check_supervisor_program "reverb:reverb_0"
+        ;;
+    ssr)
+        check_supervisor_program "inertia-ssr-server:inertia-ssr-server_0"
+        ;;
+    *)
+        echo "Container mode mismatched: ${container_mode}"
+        exit 1
+        ;;
+esac

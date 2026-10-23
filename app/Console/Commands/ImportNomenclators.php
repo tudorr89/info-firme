@@ -18,9 +18,10 @@ class ImportNomenclators extends Command
             storage_path('app/imports/n_stare_firma.csv') => 'description',
         ];
 
-        foreach ($files as $file => $descriptionField) {
-            if (!file_exists($file)) {
+        foreach (array_keys($files) as $file) {
+            if (! file_exists($file)) {
                 $this->error("File not found: $file");
+
                 continue;
             }
 
@@ -35,8 +36,9 @@ class ImportNomenclators extends Command
         $this->info("Importing from: $file");
 
         $handle = fopen($file, 'r');
-        if (!$handle) {
+        if (! $handle) {
             $this->error("Cannot open file: $file");
+
             return;
         }
 
@@ -53,25 +55,27 @@ class ImportNomenclators extends Command
             while (($line = fgetcsv($handle, 0, '^')) !== false) {
                 if ($header === null) {
                     $header = $line;
+
                     continue;
                 }
 
                 $code = trim($line[0] ?? '');
                 $description = trim($line[1] ?? '');
 
-                if (!$code || !$description) {
+                if (! $code || ! $description) {
                     $errors++;
+
                     continue;
                 }
 
                 try {
                     Nomenclator::updateOrCreate(
-                        ['code' => (int)$code],
+                        ['code' => (int) $code],
                         ['description' => $description]
                     );
                     $count++;
-                } catch (\Exception $e) {
-                    $this->error("Error importing code $code: " . $e->getMessage());
+                } catch (\Exception $exception) {
+                    $this->error("Error importing code $code: ".$exception->getMessage());
                     $errors++;
                 }
             }

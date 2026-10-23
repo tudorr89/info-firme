@@ -9,12 +9,13 @@
 /storage/ssr
 /storage/clockwork
 /storage/logs
+/storage/pail
 /storage/framework/cache
 /storage/framework/sessions
-/storage/framework/views
 /storage/framework/testing
-/bootstrap/cache
-/storage/pail
+/storage/framework/views
+/bootstrap/cache/*.php
+/bootstrap/cache/phpstan
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
@@ -22,6 +23,9 @@ npm-debug.log
 yarn-error.log
 /vendor
 .env.backup
+.env*.bak*
+# All env files stay in the context because --build-arg ENV_FILE picks one;
+# the Dockerfile deletes every stale variant after copying.
 /.idea/sonarlint
 .phpstorm.meta.php
 _ide_helper_models.php
@@ -38,4 +42,9 @@ rr
 frankenphp
 .config
 .data
+/data
+*.csv
 .git
+.github
+.gitlab-ci.yml
+Jenkinsfile*

@@ -3,19 +3,17 @@
 namespace App\Jobs;
 
 use App\Jobs\Batches\ProcessCaenCompanyImportChunkJob;
-use App\Jobs\Batches\ProcessCaenCompanyImportJob;
-use App\Models\Company;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use SplFileObject;
 
 class CaenCompanyImportJob implements ShouldQueue
 {
     use Queueable;
 
     public $timeout = 7200; // 2 hours
+
     public $tries = 3;
 
     private const CHUNK_SIZE = 100000; // Increased to 100k rows per chunk
@@ -29,24 +27,24 @@ class CaenCompanyImportJob implements ShouldQueue
     public function handle(): void
     {
         $fieldMap = [
-            'COD_INMATRICULARE'  => 0,
+            'COD_INMATRICULARE' => 0,
             'COD_CAEN_AUTORIZAT' => 1,
             'VER_CAEN_AUTORIZAT' => 2,
         ];
 
         try {
             $this->createChunkJobs($fieldMap);
-        } catch (\Exception $e) {
-            Log::error('Fatal error in CAEN chunked import: ' . $e->getMessage());
-            throw $e;
+        } catch (\Exception $exception) {
+            Log::error('Fatal error in CAEN chunked import: '.$exception->getMessage());
+            throw $exception;
         }
     }
 
     private function createChunkJobs(array $fieldMap): void
     {
         // Use SplFileObject for better memory management with large files
-        $file = new \SplFileObject($this->file, 'r');
-        $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY | \SplFileObject::DROP_NEW_LINE);
+        $file = new SplFileObject($this->file, 'r');
+        $file->setFlags(SplFileObject::READ_CSV | SplFileObject::SKIP_EMPTY | SplFileObject::DROP_NEW_LINE);
         $file->setCsvControl('^'); // Set delimiter
 
         // Skip header
@@ -57,7 +55,7 @@ class CaenCompanyImportJob implements ShouldQueue
         $currentChunk = [];
         $totalRows = 0;
 
-        while (!$file->eof()) {
+        while (! $file->eof()) {
             $line = $file->current();
             $file->next();
 
@@ -80,7 +78,7 @@ class CaenCompanyImportJob implements ShouldQueue
         }
 
         // Process remaining chunk
-        if (!empty($currentChunk)) {
+        if (! empty($currentChunk)) {
             $this->dispatchChunk($currentChunk, $fieldMap, $chunkNumber);
         }
 
@@ -94,7 +92,7 @@ class CaenCompanyImportJob implements ShouldQueue
 
         // Ensure directory exists
         $dir = dirname($chunkFile);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 

@@ -63,7 +63,7 @@ CSV;
         $header = fgetcsv($fileStream, 1000, '^');
         fclose($fileStream);
 
-        $this->assertNotNull($header);
+        $this->assertNotFalse($header);
         $this->assertCount(21, $header);
 
         // Verify key fields

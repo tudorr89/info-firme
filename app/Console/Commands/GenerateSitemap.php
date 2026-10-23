@@ -15,7 +15,7 @@ class GenerateSitemap extends Command
     {
         $chunkSize = (int) $this->option('chunk');
         $totalCompanies = Company::count();
-        $totalChunks = ceil($totalCompanies / $chunkSize);
+        $totalChunks = (int) ceil($totalCompanies / $chunkSize);
 
         $this->info("Generating sitemap for {$totalCompanies} companies in {$totalChunks} chunks...");
 

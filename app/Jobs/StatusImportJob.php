@@ -12,11 +12,10 @@ class StatusImportJob implements ShouldQueue
 
     private const BATCH_SIZE = 1000; // Adjust based on your system
 
-    public function __construct(private string $file)
-    {
-        // Set longer timeout for large files
-        $this->timeout = 3600; // 1 hour
-    }
+    /** 1 hour for large files. */
+    public int $timeout = 3600;
+
+    public function __construct(private string $file) {}
 
     public function handle(): void
     {

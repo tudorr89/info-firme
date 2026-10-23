@@ -47,17 +47,17 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
             }
             Log::error("EU Branches Batch {$this->batchNumber} failed: ".$e->getMessage());
             throw $e;
-        } catch (\Exception $e) {
-            Log::error("EU Branches Batch {$this->batchNumber} failed: ".$e->getMessage());
-            throw $e;
+        } catch (\Exception $exception) {
+            Log::error("EU Branches Batch {$this->batchNumber} failed: ".$exception->getMessage());
+            throw $exception;
         }
     }
 
-    private function isDeadlockException(PDOException $e): bool
+    private function isDeadlockException(PDOException $exception): bool
     {
-        return str_contains($e->getMessage(), 'Deadlock') ||
-               str_contains($e->getMessage(), '1213') ||
-               str_contains($e->getMessage(), '40001');
+        return str_contains($exception->getMessage(), 'Deadlock') ||
+               str_contains($exception->getMessage(), '1213') ||
+               str_contains($exception->getMessage(), '40001');
     }
 
     private function processBatch(): void

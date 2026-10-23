@@ -72,7 +72,7 @@ class CompanyImportService
                 $cui = trim($dataLine[$this->fieldMap['CUI']] ?? '');
 
                 // Skip records without valid CUI
-                if (empty($cui) || $cui === '0') {
+                if (empty($cui)) {
                     Log::info("Skipping record with invalid CUI - reg_com: {$regCom}, cui: '{$cui}'");
 
                     continue;

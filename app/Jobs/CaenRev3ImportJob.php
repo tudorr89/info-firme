@@ -49,16 +49,14 @@ class CaenRev3ImportJob implements ShouldQueue
             $caenCode = trim($line[$fieldMap['CAEN_REV3_CODE']]);
             $caenName = trim($line[$fieldMap['CAEN_REV3_NAME']] ?? '');
 
-            if (! empty($caenCode)) {
-                CaenVersion::firstOrCreate(
-                    [
-                        'code' => $caenCode,
-                    ],
-                    [
-                        'name' => $caenName,
-                    ]
-                );
-            }
+            CaenVersion::firstOrCreate(
+                [
+                    'code' => $caenCode,
+                ],
+                [
+                    'name' => $caenName,
+                ]
+            );
         }
 
         fclose($fileStream);

@@ -12,7 +12,7 @@ class AnafEnrichmentService
 
     public function __construct()
     {
-        $this->batchSize = env('ANAF_BATCH_SIZE', 100);
+        $this->batchSize = (int) config('services.anaf.batch_size');
     }
 
     public function enrich()
@@ -26,7 +26,7 @@ class AnafEnrichmentService
             if ($results) {
                 $this->updateCompaniesFromAnafResults($companies, $results);
             }
-            sleep(env('ENRICH_TIMEOUT', 60));
+            sleep((int) config('services.anaf.timeout'));
         });
     }
 

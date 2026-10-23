@@ -1,0 +1,20 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+        - config
+        - database/factories
+        - database/seeders
+        - routes
+        - tests
+
+    excludePaths:
+        - bootstrap/cache/*
+        - storage/*
+
+    tmpDir: bootstrap/cache/phpstan
+
+    parseModelCastsMethod: true

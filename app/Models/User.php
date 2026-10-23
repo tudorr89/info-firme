@@ -3,12 +3,12 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 
 class User extends Authenticatable implements FilamentUser
 {
@@ -17,19 +17,19 @@ class User extends Authenticatable implements FilamentUser
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'admin'
+        'admin',
     ];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         'password',
@@ -47,6 +47,9 @@ class User extends Authenticatable implements FilamentUser
         'admin' => 'boolean',
     ];
 
+    /**
+     * @SuppressWarnings("PHPMD.UnusedFormalParameter")
+     */
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->admin;

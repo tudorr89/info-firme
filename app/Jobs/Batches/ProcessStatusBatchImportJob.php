@@ -14,17 +14,18 @@ class ProcessStatusBatchImportJob implements ShouldQueue, Silenced
 {
     use Queueable;
 
-    public $tries = 3;
+    public int $tries = 3;
 
-    public $backoff = [1, 5, 10];
+    public array $backoff = [1, 5, 10];
+
+    /** 5 minutes per batch. */
+    public int $timeout = 300;
 
     public function __construct(
         private array $batch,
         private array $fieldMap,
         private int $batchNumber
-    ) {
-        $this->timeout = 300; // 5 minutes per batch
-    }
+    ) {}
 
     public function handle(): void
     {
@@ -41,17 +42,17 @@ class ProcessStatusBatchImportJob implements ShouldQueue, Silenced
             }
             Log::error("Batch {$this->batchNumber} failed: ".$e->getMessage());
             throw $e;
-        } catch (\Exception $e) {
-            Log::error("Batch {$this->batchNumber} failed: ".$e->getMessage());
-            throw $e;
+        } catch (\Exception $exception) {
+            Log::error("Batch {$this->batchNumber} failed: ".$exception->getMessage());
+            throw $exception;
         }
     }
 
-    private function isDeadlockException(PDOException $e): bool
+    private function isDeadlockException(PDOException $exception): bool
     {
-        return str_contains($e->getMessage(), 'Deadlock') ||
-               str_contains($e->getMessage(), '1213') ||
-               str_contains($e->getMessage(), '40001');
+        return str_contains($exception->getMessage(), 'Deadlock') ||
+               str_contains($exception->getMessage(), '1213') ||
+               str_contains($exception->getMessage(), '40001');
     }
 
     private function processUpsertBatch(): void

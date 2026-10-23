@@ -10,9 +10,10 @@ use Laravel\Horizon\Contracts\Silenced;
 
 class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
 {
-    use Queueable, Batchable;
+    use Batchable, Queueable;
 
     public $timeout = 300; // 5 minutes
+
     public $tries = 3;
 
     public function __construct(private array $dataChunk, private array $fieldMap)
@@ -27,10 +28,9 @@ class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
     {
         $insertData = [];
         $updateData = [];
-        $existingRegistrations = [];
 
         // Get existing registrations in one query
-        $registrationCodes = array_map(function($line) {
+        $registrationCodes = array_map(function ($line) {
             return [
                 'registration' => $line[$this->fieldMap['COD_INMATRICULARE']],
                 'code' => $line[$this->fieldMap['COD_CAEN_AUTORIZAT']],
@@ -39,8 +39,9 @@ class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
 
         $existing = CaenCompany::whereIn('registration', array_column($registrationCodes, 'registration'))
             ->whereIn('code', array_column($registrationCodes, 'code'))
-            ->pluck('registration', 'code','version')
-            ->toArray();
+            ->get(['registration', 'code'])
+            ->mapWithKeys(fn ($row) => [$row->registration.'|'.$row->code => true])
+            ->all();
 
         foreach ($this->dataChunk as $line) {
             $registration = $line[$this->fieldMap['COD_INMATRICULARE']];
@@ -55,7 +56,7 @@ class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
                 'updated_at' => now(),
             ];
 
-            if (!isset($existing[$code]) || $existing[$code] !== $registration) {
+            if (! isset($existing[$registration.'|'.$code])) {
                 $insertData[] = $record;
             } else {
                 $updateData[] = $record;
@@ -63,12 +64,12 @@ class ProcessCaenCompanyImportJob implements ShouldQueue, Silenced
         }
 
         // Bulk insert new records
-        if (!empty($insertData)) {
+        if (! empty($insertData)) {
             CaenCompany::insert($insertData);
         }
 
         // Bulk update existing records if needed
-        if (!empty($updateData)) {
+        if (! empty($updateData)) {
             foreach ($updateData as $record) {
                 CaenCompany::where('registration', $record['registration'])
                     ->where('code', $record['code'])
