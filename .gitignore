@@ -26,3 +26,5 @@ frankenphp-worker.php
 build-app.sh
 /data
 /storage/logs/*
+
+AGENTS.local.md

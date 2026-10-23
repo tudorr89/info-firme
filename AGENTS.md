@@ -440,65 +440,50 @@ livewire(ListUsers::class)
 
 # Project memories (build, deploy, infra)
 
-Updated 2026-10-24. Infra-wide notes: `~/Projects/infra/docs/applications.md`
-(<https://docs.rthc.cloud/applications/>).
+Updated 2026-10-24. Host/IP/path details are deliberately **not** kept in this
+public repository — they live in the private infra docs and the local-only
+`AGENTS.local.md` (gitignored).
 
-## Deploy
+## Build & deploy (summary)
 
-| | |
-|---|---|
-| Host | `info-firme.lan` = **x.x.x.x** (`ssh user@x.x.x.x`) |
-| App dir | `/home/user/docker` |
-| Compose | service `app`, container `docker-app-1` |
-| Image | `registry.example.com/info-firme:production` |
-| Port | `8000` |
-| Mounts | `./data/app` → `storage/app` (+ an unused `./data/logs` mount) |
+```bash
+# on the build host (sync the tree first; it may not reach the GitLab remote)
+rsync -az --exclude .git --exclude node_modules --exclude vendor \
+  --exclude public/build --exclude storage --exclude data \
+  ./ user@build-host:/path/to/info-firme/
 
-The compose file **intentionally does not mount `data/.env`** (stale, points at
-a non-existent `mariadb` service). Env is baked into the image from
-`.env.production`, so **changing env requires a rebuild + redeploy**. Public
-URL: `https://lista-firme.info` (baked `APP_URL`).
+cd /path/to/info-firme
+bash build-app.sh production
 
-## Build
+# on the deploy host
+docker compose pull app && docker compose up -d app
+```
 
-| | |
-|---|---|
-| Build host | `node2` (`x.x.x.x`), `/home/user/build/info-firme` |
-| Command | `bash build-app.sh production` (pushes `:production`) |
-| Builder | persistent `info-firme-builder` |
-
-`node2` cannot reach `gitlab.personalserver.host`, so the source is rsynced
-from the workstation (`--exclude .git --exclude node_modules --exclude vendor
---exclude public/build --exclude storage --exclude data`) and then built.
-`build-app.sh`, `.env.production`/`.env.local` are gitignored → they travel
-with the rsync. Remote for pushes: GitHub `origin`
-(`git@github.com:tudorr89/info-firme.git`); the `gitlab` remote is unreachable
-from the usual network.
-
-Deploy: `cd /home/user/docker && docker compose pull app && docker compose up -d app`.
+`build-app.sh` and `.env.production`/`.env.local` are gitignored (they travel
+with the rsync). The compose file **intentionally does not mount a runtime
+`.env`**: env is baked into the image, so env changes require a rebuild.
 
 ## Runtime facts
 
-- Laravel 13.38, Filament 4.15, PHP **8.4.27**, PHPUnit 13, Larastan 3, PHPMD 3.
-- **Legacy bootstrap**: `bootstrap/app.php` still uses `App\Http\Kernel`
-  (Laravel 10 style), so the framework's `/up` route doesn't exist — it is
-  declared manually in `routes/web.php` for the container healthcheck.
-- Healthcheck: image probes `/up` every 30s (the compose healthcheck override
-  was removed). Supervisor socket/pid: `/tmp/supervisor.sock`,
-  `/tmp/supervisord.pid`.
-- `start-container` runs `optimize:clear` before `optimize` (restart crash
-  fix). JIT is disabled (PHP 8.4 JIT segfaults under Rosetta).
-- `.config`/`.data` must be owned by the `laravel` user, otherwise Caddy logs
+- Laravel 13.38, Filament 4.15, PHP 8.4.27, PHPUnit 13, Larastan 3, PHPMD 3.
+- Legacy Laravel-10-style bootstrap (`App\Http\Kernel`): the framework `/up`
+  route does not exist, so it is declared manually in `routes/web.php` for the
+  container healthcheck.
+- Healthcheck probes `/up` every 30s; supervisord socket/pid live in `/tmp`.
+- `start-container` runs `optimize:clear` before `optimize` (restart crash fix).
+- PHP 8.4 JIT is disabled (segfaults under Rosetta; no benefit here).
+- `.config`/`.data` must be owned by the app user, otherwise Caddy logs
   "unable to create folder for config autosave" / "could not clean
-  default/global storage" (the Dockerfile chowns them).
-- Compose env: `WITH_HORIZON=true`, `WITH_SCHEDULER=true`; supercronic runs
-  `schedule:run` every minute. SSR/Reverb are disabled (`WITH_SSR`/
-  `WITH_REVERB` false) — their supervisor programs show as STOPPED.
-- Data lives in the bind-mounted `storage/app`; logs stay inside the container.
+  default/global storage".
+- Compose env: `WITH_HORIZON=true`, `WITH_SCHEDULER=true` (supercronic runs
+  `schedule:run` each minute); SSR/Reverb disabled (`WITH_SSR`/`WITH_REVERB`
+  false -> their supervisor programs show STOPPED).
+- Data is kept in the bind-mounted `storage/app`; logs stay inside the
+  container.
 
 ## Quality
 
 ```bash
-php artisan test     # 10 tests (feature: import mapping/upserts)
+php artisan test     # 10 tests
 composer lint        # Larastan level 5 + PHPMD 3 (rulesets.xml)
 ```
