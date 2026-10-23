@@ -74,92 +74,122 @@ php artisan horizon
 
 ## Import Date
 
-### Descarcarea fisierelor CSV
+### Descarcarea fisierelor CSV (automat)
 
-#### Fisiere Obligatorii
+Descarcarea este complet automatizata. Comanda dedesubt interogheaza API-ul CKAN al
+[data.gov.ro/organization/onrc](https://data.gov.ro/organization/onrc), alege cele mai
+recente pachete `firme-*` si `nomenclatoare-*` (dupa data din numele pachetului) si
+descarca toate resursele CSV in `storage/app/imports/`.
 
-Descarca fisierele CSV de pe [data.gov.ro - Registrul Comertului](https://data.gov.ro/dataset/firme-inregistrate-la-registrul-comertului):
-- `od_firme.csv` - Informatii despre firme
-- `od_stare_firma.csv` - Starea firmelor
-- `od_reprezentanti_legali.csv` - Reprezentanti legali
-- `od_reprezentanti_if.csv` - Reprezentanti persoane fizice
-- `od_sucursale_alte_state_membre.csv` - Sucursale in alte state membre
+```bash
+php artisan onrc:download
+```
 
-#### Fisiere Optionale (CAEN)
+Fisierele descarcate (nume normalizate):
 
-Pentru a importa clasificarile CAEN (Clasificarea Activităților în Economia Națională), descarca din [data.gov.ro - CAEN](https://data.gov.ro/dataset/codurile-caen):
-- `n_caen.csv` - Definitii CAEN
-- `n_caen_versiune.csv` - Versiuni CAEN
-- `od_caen_autorizat.csv` - Legatura intre companii si coduri CAEN
+| Fisier | Continut |
+| --- | --- |
+| `od_firme.csv` | Firme (date de identificare + adresa) |
+| `od_stare_firma.csv` | Starea firmelor |
+| `od_reprezentanti_legali.csv` | Reprezentanti legali |
+| `od_reprezentanti_if.csv` | Reprezentanti persoane fizice |
+| `od_sucursale_alte_state_membre.csv` | Sucursale in alte state membre |
+| `od_caen_autorizat.csv` | Legatura intre companii si coduri CAEN |
+| `n_caen.csv` | Definitii CAEN |
+| `n_versiune_caen.csv` | Versiuni CAEN |
+| `n_stare_firma.csv` | Nomenclator stari firma |
 
-**Nota**: Fisierele CAEN sunt optionale. Daca nu le descarci, importul va continua fara clasificarile CAEN.
+Comportamentul este controlat din `.env`:
 
-Plaseaza toate fisierele in directorul `storage/app/imports/`
+```dotenv
+ONRC_ORGANIZATION=onrc
+ONRC_API_URL=https://data.gov.ro/api/3/action
+ONRC_TIMEOUT=30            # metadata (CKAN) request timeout
+ONRC_DOWNLOAD_TIMEOUT=1800 # per-file download timeout, in seconds
+ONRC_DOWNLOAD_RETRIES=3    # HTTP retries with backoff for slow hosts
+IMPORT_DIRECTORY=imports   # storage/app subdirectory for the CSV files
+```
 
-### Import Manual
+Fisierele ONRC au sute de MB, iar hostul poate fi lent, asa ca descarcarea este
+**streamuita direct pe disc** (fara buffering in memorie) si scrisa intai intr-un
+fisier `.part`, apoi mutata atomic. Fiecare fisier este descarcat de un job separat
+(`OnrcDownloadJob`) cu timeout de 20 de minute, 5 incercari si backoff progresiv
+(1min → 5min → 15min → 30min).
 
-#### Varianta 1: Import Toate Fisierele Deodată (Recomandat)
+```bash
+php artisan onrc:download            # pune joburile in coada (recomandat)
+php artisan onrc:download --force    # re-descarca si fisierele existente
+php artisan onrc:download --sync     # descarca inline, fara cozi
+```
+
+### Import
+
+Importa toate fisierele gasite in directorul de import, in ordinea corecta
+(companii → nomenclatoare → CAEN → restul):
 
 ```bash
 php artisan import:all
 ```
 
-Aceasta va importa automat toate cele 5 fisiere CSV din directorul `storage/app/imports/`.
+Optional, specifica alt director:
 
-#### Varianta 2: Import Fisiere Individuale
+```bash
+php artisan import:all --dir=/path/to/csv
+```
 
-Importa doar companiile:
+`php artisan import:auto` ruleaza `import:all` doar daca au trecut cel putin 3 luni
+de la ultimul import (`--force` ignora verificarea).
+
+Toate importurile sunt **idempotente**: re-rularea aceluiasi snapshot actualizeaza
+randurile existente in loc sa le dubleze.
+
+### Import manual (fisiere individuale)
+
 ```bash
 php artisan import:companies storage/app/imports/od_firme.csv
-```
-
-Importa staile firmelor:
-```bash
+php artisan import:nomenclator storage/app/imports/n_stare_firma.csv
+php artisan import:caen-version storage/app/imports/n_versiune_caen.csv
+php artisan import:caen-definition storage/app/imports/n_caen.csv
 php artisan import:status storage/app/imports/od_stare_firma.csv
-```
-
-Importa reprezentantii legali:
-```bash
+php artisan import:caen-company storage/app/imports/od_caen_autorizat.csv
 php artisan import:legal-representatives storage/app/imports/od_reprezentanti_legali.csv
-```
-
-Importa reprezentantii persoane fizice:
-```bash
 php artisan import:natural-persons storage/app/imports/od_reprezentanti_if.csv
-```
-
-Importa sucursalele din alte state membre:
-```bash
 php artisan import:eu-branches storage/app/imports/od_sucursale_alte_state_membre.csv
 ```
 
-#### Varianta 3: Import CAEN (Doar daca fisierele sunt disponibile)
+### CIF-uri blocate (banned)
 
-Importa definitiile CAEN:
-```bash
-php artisan import:caen-definition storage/app/imports/n_caen.csv
+Companiile cu CUI-ul in lista `SKIP_CIFS_IMPORT` (separate prin virgula) sunt ignorate
+la import. Joburile care importa datele legate (stari, reprezentanti, sucursale, CAEN)
+rezolva `companies.reg_com` intr-un singur query per batch si sari peste randurile fara
+companie existenta, deci nu se creeaza date orfane pentru CIF-urile blocate.
+
+```dotenv
+SKIP_CIFS_IMPORT=52491237,12345678
 ```
 
-Importa versiunile CAEN:
+### Legarea datelor (company links)
+
+Fiecare rand importat este legat de compania lui la momentul inserarii. Daca datele
+ajung inaintea companiilor (import paralel) sau exista randuri vechi fara legatura,
+ruleaza:
+
 ```bash
-php artisan import:caen-version storage/app/imports/n_caen_versiune.csv
+php artisan companies:link            # completeaza company_id
+php artisan companies:link --dry-run  # doar raporteaza cate randuri nu sunt legate
+php artisan companies:link --prune    # sterge si randurile companiilor neimportate
 ```
 
-Importa legaturile companii-CAEN:
-```bash
-php artisan import:caen-company storage/app/imports/od_caen_autorizat.csv
-```
-
-**Ordinea Importului CAEN**: Trebuie importate in ordinea: definitii → versiuni → companii.
-
-**Daca ai deja fisierele CAEN descarcate**: Cand rulezi `php artisan import:all`, acestea vor fi importate automat daca sunt in `storage/app/imports/`. Daca lipsesc, comanda va arata un mesaj cu instructiuni.
+`import:all` programeaza automat un `LinkCompanyDataJob` (dupa 60 de minute, configurabil
+cu `--link-delay=0` pentru a-l dezactiva), iar scheduler-ul ruleaza `companies:link`
+zilnic si `companies:link --prune` lunar.
 
 #### Monitorizare Import
 
 In timp ce import-ul decurge, viziteaza dashboardul Horizon pentru a vedea progresul in timp real:
 
 ```
-http://info-firme.test/horizon
+http://info-firme.test/admin/horizon
 ```
 
 Dashboardul arata:
