@@ -23,11 +23,16 @@ class CompanyController extends Controller
                     'legalRepresentatives',
                     'naturalPersonRepresentatives',
                     'euBranches',
-                ])->where('cui', $request->cui)->orderBy('registration_date', 'desc')->firstOrFail();
+                ])
+                    ->where('cui', $request->cui)
+                    ->preferActive()
+                    ->orderByDesc('registration_date')
+                    ->firstOrFail();
             });
 
             return response()->json($company);
         }
+
         $company = Cache::remember($request->company, 60 * 60 * 24, function () use ($request) {
             return Company::with([
                 'address',
@@ -38,7 +43,11 @@ class CompanyController extends Controller
                 'legalRepresentatives',
                 'naturalPersonRepresentatives',
                 'euBranches',
-            ])->where('name', 'LIKE', $request->company.'%')->paginate();
+            ])
+                ->presentable()
+                ->where('name', 'LIKE', $request->company.'%')
+                ->orderByDesc('registration_date')
+                ->paginate();
         });
 
         return response()->json($company);

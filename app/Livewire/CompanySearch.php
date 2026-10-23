@@ -4,13 +4,9 @@ namespace App\Livewire;
 
 use App\Models\Company;
 use Illuminate\Database\Eloquent\Collection;
-use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-/**
- * @property-read Collection<int, Company> $topResults
- */
 #[Layout('layouts.app')]
 class CompanySearch extends Component
 {
@@ -22,21 +18,32 @@ class CompanySearch extends Component
         $this->redirect(route('company.show', $company->cui), navigate: false);
     }
 
-    #[Computed]
-    public function topResults()
+    /**
+     * @return Collection<int, Company>
+     */
+    public function topResults(): Collection
     {
         if (strlen($this->search) < 1) {
-            return [];
+            return new Collection;
         }
 
-        return Company::query()
+        $results = Company::query()
+            ->presentable()
             ->where(function ($query) {
                 $query->where('cui', $this->search)
                     ->orWhere('name', 'like', '%'.$this->search.'%');
             })
-            ->orderBy('registration_date', 'desc')
-            ->limit(10)
+            ->preferActive()
+            ->orderByDesc('registration_date')
+            ->limit(25)
             ->get();
+
+        // The same CIF can be registered more than once (an old company and a
+        // newly registered one), so only the best match per CIF is listed.
+        return $results
+            ->unique('cui')
+            ->take(10)
+            ->values();
     }
 
     public function render()
@@ -48,7 +55,7 @@ class CompanySearch extends Component
         ])->render();
 
         return view('livewire.company-search', [
-            'topResults' => $this->topResults,
+            'topResults' => $this->topResults(),
         ])->layoutData(['seoMeta' => $seoMeta]);
     }
 }

@@ -14,7 +14,8 @@ class CompanyController extends Controller
             abort(404);
         }
 
-        // Cache company data for 24 hours
+        // A CIF can belong to more than one company (the old, deregistered one
+        // and a newly registered one), so the still operating company wins.
         $company = Cache::remember(
             "company_page_{$cui}",
             now()->addDay(),
@@ -27,7 +28,11 @@ class CompanyController extends Controller
                     'legalRepresentatives',
                     'naturalPersonRepresentatives',
                     'euBranches',
-                ])->where('cui', $cui)->orderBy('registration_date', 'desc')->firstOrFail();
+                ])
+                    ->where('cui', $cui)
+                    ->preferActive()
+                    ->orderByDesc('registration_date')
+                    ->firstOrFail();
             }
         );
 

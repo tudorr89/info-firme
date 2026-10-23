@@ -14,7 +14,7 @@ class GenerateSitemap extends Command
     public function handle(): int
     {
         $chunkSize = (int) $this->option('chunk');
-        $totalCompanies = Company::count();
+        $totalCompanies = Company::presentable()->count();
         $totalChunks = (int) ceil($totalCompanies / $chunkSize);
 
         $this->info("Generating sitemap for {$totalCompanies} companies in {$totalChunks} chunks...");
@@ -35,7 +35,8 @@ class GenerateSitemap extends Command
 
     private function generateChunk(int $chunkNumber, int $offset, int $chunkSize): void
     {
-        $companies = Company::orderBy('id')
+        $companies = Company::presentable()
+            ->orderBy('id')
             ->offset($offset)
             ->limit($chunkSize)
             ->select('cui', 'updated_at')
