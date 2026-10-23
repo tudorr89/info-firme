@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Services\OnrcDownloadService;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,7 +24,7 @@ use Throwable;
  */
 class OnrcDownloadJob implements ShouldQueue, Silenced
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $timeout = 1200;
 

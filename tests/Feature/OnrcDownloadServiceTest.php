@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ImportAllJob;
 use App\Jobs\OnrcDownloadJob;
 use App\Services\OnrcDownloadService;
 use Illuminate\Http\Client\Request;
@@ -160,6 +161,32 @@ class OnrcDownloadServiceTest extends TestCase
             ->failed(new RuntimeException('timeout'));
 
         Storage::disk('local')->assertMissing('imports/od_firme.csv.part');
+    }
+
+    public function test_command_queues_the_import_after_the_downloads_when_asked(): void
+    {
+        Queue::fake();
+        $this->fakeOnrcApi();
+
+        $this->artisan('onrc:download', ['--import' => true])->assertSuccessful();
+
+        Queue::assertPushed(OnrcDownloadJob::class, 7);
+        Queue::assertPushed(ImportAllJob::class, 0);
+    }
+
+    public function test_command_queues_the_import_immediately_when_nothing_is_left_to_download(): void
+    {
+        Queue::fake();
+        $this->fakeOnrcApi();
+
+        foreach (config('import.files') as $filename => $command) {
+            Storage::disk('local')->put("imports/{$filename}", 'existing');
+        }
+
+        $this->artisan('onrc:download', ['--import' => true])->assertSuccessful();
+
+        Queue::assertNotPushed(OnrcDownloadJob::class);
+        Queue::assertPushed(ImportAllJob::class);
     }
 
     private function fakeOnrcApi(): void
