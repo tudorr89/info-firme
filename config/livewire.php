@@ -7,7 +7,7 @@ return [
     | Class Namespace
     |---------------------------------------------------------------------------
     |
-    | This value sets the REDACTED class namespace for Livewire component classes in
+    | This value sets the root class namespace for Livewire component classes in
     | your application. This value will change where component auto-discovery
     | finds components. It's also referenced by the file creation commands.
     |

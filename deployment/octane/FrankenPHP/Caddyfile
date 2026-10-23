@@ -37,7 +37,7 @@
 	}
 
 	route {
-		REDACTED * "{$APP_PUBLIC_PATH}"
+		root * "{$APP_PUBLIC_PATH}"
 		encode zstd br gzip 
 
 		{$CADDY_SERVER_EXTRA_DIRECTIVES}
@@ -65,7 +65,7 @@
 
 		php_server {
 			try_files {path} frankenphp-worker.php
-			resolve_REDACTED_symlink
+			resolve_root_symlink
 		}
 	}
 }

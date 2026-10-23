@@ -315,5 +315,5 @@ return [
     |
     */
 
-    'REDACTED_folder_prefix' => 'REDACTED',
+    'root_folder_prefix' => 'root',
 ];

@@ -48,7 +48,7 @@ Configurare baza de date
 # DB_HOST=127.0.0.1
 # DB_PORT=3306
 # DB_DATABASE=info_firme
-# DB_USERNAME=REDACTED
+# DB_USERNAME=root
 # DB_PASSWORD=
 ```
 

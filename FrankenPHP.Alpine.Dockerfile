@@ -23,7 +23,7 @@ COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
 # Persistent Go caches: a version bump recompiles FrankenPHP in ~1min instead
 # of re-downloading the whole module graph and rebuilding Caddy from scratch.
 RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/REDACTED/.cache/go-build \
+    --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=1 \
     XCADDY_SETCAP=1 \
     XCADDY_GO_BUILD_FLAGS="-ldflags='-w -s' -tags=nobadger,nomysql,nopgx" \
@@ -175,7 +175,7 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
 COPY --link --chown=${USER_ID}:${GROUP_ID} package.json bun.lock* ./
 
 # Keep Bun's tarball cache between builds (it is not part of the image).
-RUN --mount=type=cache,target=/REDACTED/.bun/install/cache \
+RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile
 
 COPY --link --chown=${USER_ID}:${GROUP_ID} . .

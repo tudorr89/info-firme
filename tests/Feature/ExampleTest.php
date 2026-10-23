@@ -10,7 +10,7 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_application_REDACTED_returns_unauthorized(): void
+    public function test_the_application_root_returns_unauthorized(): void
     {
         $response = $this->get('/');
 
