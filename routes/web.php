@@ -18,11 +18,14 @@ Route::get('/solicitare-stergere', CifRemovalForm::class)->name('cif-removal.cre
 // Container/orchestrator health probe (cheap: no Laravel boot through artisan).
 Route::get('/up', fn () => response('OK', 200))->name('health');
 
-// Sitemap routes - use API middleware to avoid session cookies
+// Sitemaps - no session middleware: crawlers must not get a session cookie or
+// a Set-Cookie header on a file that rarely changes.
 Route::withoutMiddleware(['web'])->group(function () {
-    Route::get('/sitemap.xml', [SitemapController::class, 'index']);
-    Route::get('/api/sitemap-{number}.xml', [SitemapController::class, 'chunk'])
-        ->where('number', '[0-9]+');
+    Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.index');
+    Route::get('/sitemap-pages.xml', [SitemapController::class, 'pages'])->name('sitemap.pages');
+    Route::get('/sitemap-{number}.xml', [SitemapController::class, 'chunk'])
+        ->where('number', '[0-9]+')
+        ->name('sitemap.chunk');
 });
 
 Route::fallback(function () {

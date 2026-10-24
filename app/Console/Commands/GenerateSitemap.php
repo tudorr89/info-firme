@@ -3,95 +3,217 @@
 namespace App\Console\Commands;
 
 use App\Models\Company;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
+/**
+ * Writes the sitemap files that `SitemapController` serves.
+ *
+ * Layout in storage/app/sitemaps:
+ *   sitemap.xml          – the index (pages + one entry per company chunk)
+ *   sitemap-pages.xml    – the public static pages
+ *   sitemap-{n}.xml      – company pages, at most `--chunk` URLs each
+ *
+ * Only what `Company::presentable()` allows is listed, so obsolete companies
+ * and banned CIFs never reach a search engine.
+ */
+#[Signature('sitemap:generate {--chunk=50000 : URLs per company sitemap file}')]
+#[Description('Generate the XML sitemaps for the public pages')]
 class GenerateSitemap extends Command
 {
-    protected $signature = 'sitemap:generate {--chunk=50000}';
-
-    protected $description = 'Generate XML sitemap for all companies';
+    /**
+     * The sitemap protocol allows at most 50.000 URLs (and 50 MB) per file.
+     */
+    private const MAX_URLS_PER_FILE = 50000;
 
     public function handle(): int
     {
         $chunkSize = (int) $this->option('chunk');
-        $totalCompanies = Company::presentable()->count();
-        $totalChunks = (int) ceil($totalCompanies / $chunkSize);
 
-        $this->info("Generating sitemap for {$totalCompanies} companies in {$totalChunks} chunks...");
+        if ($chunkSize < 1) {
+            $this->error('--chunk must be a positive number.');
 
-        // Generate individual sitemaps
-        for ($chunk = 0; $chunk < $totalChunks; $chunk++) {
-            $offset = $chunk * $chunkSize;
-            $this->generateChunk($chunk + 1, $offset, $chunkSize);
+            return self::FAILURE;
         }
 
-        // Generate index file
-        $this->generateIndex($totalChunks);
+        $chunkSize = min($chunkSize, self::MAX_URLS_PER_FILE);
 
-        $this->info('Sitemap generation complete!');
+        $directory = $this->directory();
+        $this->ensureDirectory($directory);
 
-        return Command::SUCCESS;
+        $this->writePages($directory);
+
+        $totalCompanies = Company::presentable()->count();
+        $this->info("Writing {$totalCompanies} company URLs to sitemap chunks...");
+
+        $chunks = $this->writeCompanyChunks($directory, $chunkSize);
+
+        $this->writeIndex($directory, $chunks);
+        $this->removeStaleFiles($directory, $chunks);
+
+        $this->info("Sitemap generation complete: 1 page sitemap + {$chunks} company sitemap(s).");
+
+        return self::SUCCESS;
     }
 
-    private function generateChunk(int $chunkNumber, int $offset, int $chunkSize): void
+    /**
+     * @return array<int, array{loc: string, priority: string}>
+     */
+    private function pages(): array
     {
-        $companies = Company::presentable()
-            ->orderBy('id')
-            ->offset($offset)
-            ->limit($chunkSize)
-            ->select('cui', 'updated_at')
-            ->get();
+        return [
+            ['loc' => route('company.search'), 'priority' => '1.0'],
+            ['loc' => route('legal.terms'), 'priority' => '0.3'],
+            ['loc' => route('legal.privacy'), 'priority' => '0.3'],
+        ];
+    }
 
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
-        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+    private function writePages(string $directory): void
+    {
+        $xml = $this->openUrlset();
 
-        foreach ($companies as $company) {
-            $url = route('company.show', $company->cui);
-            $lastmod = $company->updated_at->format('Y-m-d');
-
-            $xml .= "  <url>\n";
-            $xml .= '    <loc>'.htmlspecialchars($url)."</loc>\n";
-            $xml .= "    <lastmod>{$lastmod}</lastmod>\n";
-            $xml .= "    <changefreq>monthly</changefreq>\n";
-            $xml .= "    <priority>0.8</priority>\n";
-            $xml .= "  </url>\n";
+        foreach ($this->pages() as $page) {
+            $xml .= $this->urlEntry($page['loc'], now()->format('Y-m-d'), $page['priority']);
         }
 
         $xml .= '</urlset>';
 
-        $sitemapDir = storage_path('app/sitemaps');
-        if (! is_dir($sitemapDir)) {
-            mkdir($sitemapDir, 0755, true);
-        }
+        $this->writeAtomically($directory.'/sitemap-pages.xml', $xml);
 
-        $filename = $sitemapDir."/sitemap-{$chunkNumber}.xml";
-        file_put_contents($filename, $xml);
-
-        $this->info("Generated sitemap-{$chunkNumber}.xml ({$companies->count()} URLs)");
+        $this->info('Generated sitemap-pages.xml ('.count($this->pages()).' URLs)');
     }
 
-    private function generateIndex(int $totalChunks): void
+    /**
+     * Keyset pagination (`chunkById`) instead of OFFSET: with four million rows
+     * an OFFSET scan walks every skipped row, which turns the generation into
+     * dozens of full table scans.
+     */
+    private function writeCompanyChunks(string $directory, int $chunkSize): int
     {
+        $chunks = 0;
+
+        Company::presentable()
+            ->select('id', 'cui', 'updated_at')
+            ->chunkById($chunkSize, function ($companies) use ($directory, &$chunks): void {
+                $xml = $this->openUrlset();
+                $written = 0;
+
+                foreach ($companies as $company) {
+                    // The company route only accepts digits, and a handful of
+                    // imported rows have an empty CUI.
+                    if (preg_match('/^[0-9]+$/', (string) $company->cui) !== 1) {
+                        continue;
+                    }
+
+                    $xml .= $this->urlEntry(
+                        route('company.show', $company->cui),
+                        $company->updated_at?->format('Y-m-d') ?? now()->format('Y-m-d'),
+                        '0.8',
+                    );
+
+                    $written++;
+                }
+
+                $xml .= '</urlset>';
+
+                if ($written === 0) {
+                    return;
+                }
+
+                $chunks++;
+
+                $this->writeAtomically($directory."/sitemap-{$chunks}.xml", $xml);
+
+                $this->info("Generated sitemap-{$chunks}.xml ({$written} URLs)");
+            });
+
+        return $chunks;
+    }
+
+    private function writeIndex(string $directory, int $chunks): void
+    {
+        $lastmod = now()->format('Y-m-d');
+
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
         $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+        $xml .= $this->indexEntry(route('sitemap.pages'), $lastmod);
 
-        for ($i = 1; $i <= $totalChunks; $i++) {
-            $url = url("api/sitemap-{$i}.xml");
-            $xml .= "  <sitemap>\n";
-            $xml .= '    <loc>'.htmlspecialchars($url)."</loc>\n";
-            $xml .= "  </sitemap>\n";
+        for ($chunk = 1; $chunk <= $chunks; $chunk++) {
+            $xml .= $this->indexEntry(route('sitemap.chunk', $chunk), $lastmod);
         }
 
         $xml .= '</sitemapindex>';
 
-        $sitemapDir = storage_path('app/sitemaps');
-        if (! is_dir($sitemapDir)) {
-            mkdir($sitemapDir, 0755, true);
+        $this->writeAtomically($directory.'/sitemap.xml', $xml);
+
+        $this->info('Generated sitemap.xml ('.($chunks + 1).' sitemaps)');
+    }
+
+    /**
+     * Drop files left over from a previous run that had more chunks.
+     */
+    private function removeStaleFiles(string $directory, int $chunks): void
+    {
+        foreach (glob($directory.'/sitemap-*.xml') ?: [] as $file) {
+            $name = basename($file, '.xml');
+
+            if ($name === 'sitemap-pages') {
+                continue;
+            }
+
+            $number = (int) str_replace('sitemap-', '', $name);
+
+            if (($number < 1 || $number > $chunks) && is_file($file)) {
+                unlink($file);
+            }
         }
+    }
 
-        $filename = $sitemapDir.'/sitemap.xml';
-        file_put_contents($filename, $xml);
+    private function openUrlset(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8"?>'."\n"
+            .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+    }
 
-        $this->info('Generated sitemap index (sitemap.xml)');
+    private function urlEntry(string $loc, string $lastmod, string $priority): string
+    {
+        return "  <url>\n"
+            .'    <loc>'.htmlspecialchars($loc, ENT_XML1)."</loc>\n"
+            ."    <lastmod>{$lastmod}</lastmod>\n"
+            ."    <priority>{$priority}</priority>\n"
+            ."  </url>\n";
+    }
+
+    private function indexEntry(string $loc, string $lastmod): string
+    {
+        return "  <sitemap>\n"
+            .'    <loc>'.htmlspecialchars($loc, ENT_XML1)."</loc>\n"
+            ."    <lastmod>{$lastmod}</lastmod>\n"
+            ."  </sitemap>\n";
+    }
+
+    /**
+     * Write to a temporary file first: a crawler must never read a file that is
+     * still being written.
+     */
+    private function writeAtomically(string $path, string $contents): void
+    {
+        $temporary = $path.'.tmp';
+
+        file_put_contents($temporary, $contents);
+        rename($temporary, $path);
+    }
+
+    private function directory(): string
+    {
+        return storage_path('app/sitemaps');
+    }
+
+    private function ensureDirectory(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
     }
 }
