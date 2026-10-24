@@ -3,13 +3,13 @@
 namespace Tests\Feature;
 
 use App\Livewire\CifRemovalForm;
-use App\Mail\CifRemovalRequestReceived;
 use App\Models\CifRemovalRequest;
 use App\Models\Company;
 use App\Models\Status;
 use App\Services\BannedCifService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -188,54 +188,66 @@ class CifRemovalFormTest extends TestCase
         $this->assertSame(0, CifRemovalRequest::count());
     }
 
-    public function test_it_notifies_the_operator_by_email(): void
+    public function test_it_pushes_a_gotify_notification_to_the_operator(): void
     {
-        Mail::fake();
+        $this->enableGotify();
+        Http::fake(['gotify.test/*' => Http::response(['id' => 1], 200)]);
 
         $this->submitRequest();
 
-        Mail::assertSent(
-            CifRemovalRequestReceived::class,
-            fn (CifRemovalRequestReceived $mail): bool => $mail->hasTo('tudorr89@gmail.com')
-                && $mail->request->cui === self::CUI
-                && $mail->hasReplyTo('ion.popescu@example.ro')
-        );
+        Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
+            return $request->method() === 'POST'
+                && str_contains($request->url(), 'gotify.test/message?token=test-token')
+                && $payload['title'] === 'Cerere nouă de ștergere CIF '.self::CUI
+                && str_contains($payload['message'], 'TEST COMPANY S.R.L.')
+                && str_contains($payload['message'], 'ion.popescu@example.ro')
+                && str_contains($payload['message'], '/admin/cif-removal-requests/');
+        });
     }
 
-    public function test_the_notification_recipient_can_be_configured(): void
+    public function test_nothing_is_pushed_when_gotify_is_disabled(): void
     {
-        Mail::fake();
-        config(['skip.notification_email' => 'operator@example.ro']);
+        config(['skip.gotify.enabled' => false]);
+        Http::fake();
 
         $this->submitRequest();
 
-        Mail::assertSent(
-            CifRemovalRequestReceived::class,
-            fn (CifRemovalRequestReceived $mail): bool => $mail->hasTo('operator@example.ro')
-        );
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('cif_removal_requests', ['cui' => self::CUI, 'status' => 'pending']);
     }
 
-    public function test_a_mail_failure_does_not_lose_the_request(): void
+    public function test_a_rejected_push_does_not_lose_the_request(): void
     {
-        Mail::shouldReceive('to')->andThrow(new \RuntimeException('SMTP down'));
+        $this->enableGotify();
+        Http::fake(['gotify.test/*' => Http::response('nope', 500)]);
 
         $this->submitRequest();
 
-        $this->assertDatabaseHas('cif_removal_requests', [
-            'cui' => self::CUI,
-            'status' => 'pending',
-        ]);
+        $this->assertDatabaseHas('cif_removal_requests', ['cui' => self::CUI, 'status' => 'pending']);
     }
 
-    public function test_the_notification_is_not_sent_when_validation_fails(): void
+    public function test_a_gotify_outage_does_not_lose_the_request(): void
     {
-        Mail::fake();
+        $this->enableGotify();
+        Http::fake(['gotify.test/*' => fn () => throw new \RuntimeException('Gotify down')]);
+
+        $this->submitRequest();
+
+        $this->assertDatabaseHas('cif_removal_requests', ['cui' => self::CUI, 'status' => 'pending']);
+    }
+
+    public function test_nothing_is_pushed_when_validation_fails(): void
+    {
+        $this->enableGotify();
+        Http::fake();
 
         Livewire::test(CifRemovalForm::class)
             ->set('cui', 'nu-e-cif')
             ->call('submit');
 
-        Mail::assertNothingSent();
+        Http::assertNothingSent();
     }
 
     public function test_it_shows_the_company_matching_the_cui(): void
@@ -243,6 +255,15 @@ class CifRemovalFormTest extends TestCase
         Livewire::test(CifRemovalForm::class)
             ->set('cui', self::CUI)
             ->assertSee('TEST COMPANY S.R.L.');
+    }
+
+    private function enableGotify(): void
+    {
+        config([
+            'skip.gotify.enabled' => true,
+            'skip.gotify.url' => 'https://gotify.test',
+            'skip.gotify.token' => 'test-token',
+        ]);
     }
 
     private function submitRequest(): void

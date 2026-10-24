@@ -27,11 +27,16 @@ return [
     | Where removal requests are announced
     |--------------------------------------------------------------------------
     |
-    | Every request submitted through the public form is e-mailed here, so the
-    | operator finds out without having to watch the admin panel.
+    | A new request is pushed to Gotify so the operator finds out without having
+    | to watch the admin panel. Only production sets GOTIFY_ENABLED (the values
+    | live in .env.production); everywhere else this stays off.
     |
     */
 
-    'notification_email' => env('CIF_REMOVAL_NOTIFICATION_EMAIL', 'tudorr89@gmail.com'),
+    'gotify' => [
+        'enabled' => (bool) env('GOTIFY_ENABLED', false),
+        'url' => env('GOTIFY_URL', ''),
+        'token' => env('GOTIFY_TOKEN', ''),
+    ],
 
 ];

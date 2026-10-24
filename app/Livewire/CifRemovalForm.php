@@ -2,17 +2,14 @@
 
 namespace App\Livewire;
 
-use App\Mail\CifRemovalRequestReceived;
 use App\Models\CifRemovalRequest;
 use App\Models\Company;
 use App\Services\BannedCifService;
+use App\Services\GotifyNotifier;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Throwable;
 
 #[Layout('layouts.app')]
 class CifRemovalForm extends Component
@@ -138,21 +135,9 @@ class CifRemovalForm extends Component
      */
     private function notifyOperator(CifRemovalRequest $request): void
     {
-        $recipient = (string) config('skip.notification_email');
-
-        if ($recipient === '') {
-            return;
-        }
-
-        try {
-            Mail::to($recipient)->send(new CifRemovalRequestReceived($request));
-        } catch (Throwable $exception) {
-            Log::error('CIF removal request e-mail could not be sent', [
-                'cui' => $request->cui,
-                'request_id' => $request->getKey(),
-                'error' => $exception->getMessage(),
-            ]);
-        }
+        // Best effort: `GotifyNotifier` swallows and logs its own failures, so
+        // the visitor's request is stored even when the push fails.
+        GotifyNotifier::forRemovalRequest($request);
     }
 
     public function render(): View
