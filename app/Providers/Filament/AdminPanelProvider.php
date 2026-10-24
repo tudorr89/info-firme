@@ -29,8 +29,13 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->brandName('lista-firme.info')
+            ->brandLogo(fn () => view('filament.brand-logo'))
+            ->brandLogoHeight('2.25rem')
+            ->favicon(asset('favicon.svg'))
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Violet,
+                'gray' => Color::Slate,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

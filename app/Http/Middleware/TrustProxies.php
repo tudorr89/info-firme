@@ -10,9 +10,16 @@ class TrustProxies extends Middleware
     /**
      * The trusted proxies for this application.
      *
+     * The container is never reached directly: traffic arrives through a
+     * Cloudflare tunnel and then Caddy, both of which prefix the request with
+     * X-Forwarded-* headers. Trusting every proxy is safe here because the app
+     * port is not exposed publicly, and without it Laravel believes every
+     * request is plain HTTP — which made the admin panel redirect to
+     * `http://…/admin` after login and emitted http:// canonical/OG URLs.
+     *
      * @var array<int, string>|string|null
      */
-    protected $proxies;
+    protected $proxies = '*';
 
     /**
      * The headers that should be used to detect proxies.

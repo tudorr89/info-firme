@@ -136,6 +136,13 @@ class CompanySearch extends Component
             ->pluck('id')
             ->all();
 
+        // Digits mean a CUI look-up: the indexed prefix match already answers
+        // it, and running the name search as well costs about 0.7s for a
+        // numeric token that almost never appears in a name.
+        if (ctype_digit($search)) {
+            return $cuiIds;
+        }
+
         if (mb_strlen($search) < self::MIN_NAME_LENGTH) {
             return $cuiIds;
         }

@@ -105,6 +105,28 @@ class CompanySearchTest extends TestCase
         $this->assertSame(['ACTIVE ENERGY S.R.L.'], $this->search('energy')->pluck('name')->all());
     }
 
+    public function test_a_numeric_query_is_treated_as_a_cui_lookup(): void
+    {
+        $this->company('RTI 2008 S.R.L.', '11111111', 'J40/1/2024');
+
+        // "2008" appears in the name but is read as a CUI, so the name index is
+        // not searched (it would cost ~0.7s on the real dataset).
+        $component = new CompanySearch;
+        $component->search = '2008';
+
+        $this->assertCount(0, $component->topResults());
+    }
+
+    public function test_the_company_name_can_still_be_searched_with_its_digits(): void
+    {
+        $this->company('RTI 2008 S.R.L.', '11111111', 'J40/1/2024');
+
+        $component = new CompanySearch;
+        $component->search = 'rti 2008';
+
+        $this->assertSame(['RTI 2008 S.R.L.'], $component->topResults()->pluck('name')->all());
+    }
+
     public function test_full_text_operators_in_the_input_are_ignored(): void
     {
         $this->company('RTI GLOBAL SERVICES S.R.L.', '51859625', 'J2025037467000');
