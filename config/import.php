@@ -1,5 +1,15 @@
 <?php
 
+use App\Jobs\CaenCompanyImportJob;
+use App\Jobs\CaenDefinitionImportJob;
+use App\Jobs\CaenVersionImportJob;
+use App\Jobs\CompanyImportJob;
+use App\Jobs\EUBranchImportJob;
+use App\Jobs\LegalRepresentativeImportJob;
+use App\Jobs\NaturalPersonRepresentativeImportJob;
+use App\Jobs\NomenclatorImportJob;
+use App\Jobs\StatusImportJob;
+
 return [
 
     /*
@@ -22,22 +32,22 @@ return [
     | Import Map
     |--------------------------------------------------------------------------
     |
-    | Maps the canonical CSV filename to the artisan command that imports it.
-    | The order of this array is the order in which files are imported: the
-    | company file must come first because every other import links to it.
+    | Maps the canonical CSV filename to the job that imports it. The order of
+    | this array is the order in which the files are dispatched: the company file
+    | comes first because every other import links to it.
     |
     */
 
     'files' => [
-        'od_firme.csv' => 'import:companies',
-        'n_stare_firma.csv' => 'import:nomenclator',
-        'n_versiune_caen.csv' => 'import:caen-version',
-        'n_caen.csv' => 'import:caen-definition',
-        'od_stare_firma.csv' => 'import:status',
-        'od_caen_autorizat.csv' => 'import:caen-company',
-        'od_reprezentanti_legali.csv' => 'import:legal-representatives',
-        'od_reprezentanti_if.csv' => 'import:natural-persons',
-        'od_sucursale_alte_state_membre.csv' => 'import:eu-branches',
+        'od_firme.csv' => CompanyImportJob::class,
+        'n_stare_firma.csv' => NomenclatorImportJob::class,
+        'n_versiune_caen.csv' => CaenVersionImportJob::class,
+        'n_caen.csv' => CaenDefinitionImportJob::class,
+        'od_stare_firma.csv' => StatusImportJob::class,
+        'od_caen_autorizat.csv' => CaenCompanyImportJob::class,
+        'od_reprezentanti_legali.csv' => LegalRepresentativeImportJob::class,
+        'od_reprezentanti_if.csv' => NaturalPersonRepresentativeImportJob::class,
+        'od_sucursale_alte_state_membre.csv' => EUBranchImportJob::class,
     ],
 
 ];

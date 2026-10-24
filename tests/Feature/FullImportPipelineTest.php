@@ -145,7 +145,8 @@ class FullImportPipelineTest extends TestCase
             ['J40/1234/2024', 'SECOND PERSON', '01/01/1981', 'Cluj', 'Cluj', 'Romania', 'membru'],
         ], $fieldMap, 2))->handle();
 
-        $this->assertSame(2, NaturalPersonRepresentative::count());
+        // The fixture file already has one representative for this company.
+        $this->assertSame(3, NaturalPersonRepresentative::where('registration', 'J40/1234/2024')->count());
         $this->assertDatabaseHas('natural_person_representatives', ['full_name' => 'FIRST PERSON']);
         $this->assertDatabaseHas('natural_person_representatives', ['full_name' => 'SECOND PERSON']);
     }

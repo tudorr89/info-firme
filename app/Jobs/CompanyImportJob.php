@@ -2,30 +2,41 @@
 
 namespace App\Jobs;
 
-use App\Jobs\Batches\ProcessCompanyBatchImportJobUpsert;
-use Illuminate\Bus\Queueable;
+use Illuminate\Bus\Batch;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Horizon\Contracts\Silenced;
+use RuntimeException;
+use Throwable;
 
-class CompanyImportJob implements ShouldQueue
+/**
+ * Imports the company file.
+ *
+ * The file is sliced into chunk files while streaming (a few million rows do
+ * not fit in a job payload) and the chunks are dispatched as one Laravel batch.
+ * The related files (statuses, CAEN, representatives, branches) are dispatched
+ * only in the batch's `then` callback: they link to `companies`, so running them
+ * before the companies exist would silently skip rows.
+ */
+class CompanyImportJob implements ShouldQueue, Silenced
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, Queueable;
 
-    public int $timeout = 1200;
+    public int $timeout = 1800;
 
-    private const BATCH_SIZE = 4000; // rows per queued batch
+    public int $tries = 1;
+
+    private const CHUNK_SIZE = 25000;
 
     public function __construct(private string $file)
     {
         //
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
         $fieldMap = [
@@ -52,38 +63,92 @@ class CompanyImportJob implements ShouldQueue
             'MARK' => 20,
         ];
 
+        $chunkFiles = $this->splitIntoChunks();
+        $jobs = array_map(
+            fn (string $chunkFile) => new CompanyChunkImportJob($chunkFile, $fieldMap),
+            $chunkFiles
+        );
+
+        Bus::batch($jobs)
+            ->name('Import companies')
+            ->allowFailures()
+            ->then(function (Batch $batch): void {
+                Log::info('Company import finished', [
+                    'total' => $batch->totalJobs,
+                    'failed' => $batch->failedJobs,
+                ]);
+
+                ImportRelatedDataJob::dispatch();
+            })
+            ->dispatch();
+
+        Log::info('Company import dispatched', ['chunks' => count($jobs)]);
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        Log::error('Company import failed: '.$exception?->getMessage());
+    }
+
+    /**
+     * Split the CSV into chunk files that keep the original '^' layout.
+     *
+     * @return array<int, string>
+     */
+    private function splitIntoChunks(): array
+    {
         $fileStream = fopen($this->file, 'r');
-        $batch = [];
-        $batchCount = 0;
+
+        if ($fileStream === false) {
+            throw new RuntimeException("Cannot open company file: {$this->file}");
+        }
+
+        $directory = (string) config('import.directory').'/chunks';
+        $disk = Storage::disk(config('import.disk'));
+
+        if (! is_dir($disk->path($directory))) {
+            mkdir($disk->path($directory), 0755, true);
+        }
+
+        $chunkFiles = [];
+        $handle = null;
+        $rowsInChunk = 0;
         $skipHeader = true;
-        $lineNumber = 0;
 
         while (($line = fgetcsv($fileStream, 0, '^')) !== false) {
-            $lineNumber++;
-
             if ($skipHeader) {
                 $skipHeader = false;
 
                 continue;
             }
 
-            $batch[] = $line;
-            $batchCount++;
+            if ($handle === null) {
+                $path = $disk->path($directory.'/companies_'.(count($chunkFiles) + 1).'.csv');
+                $handle = fopen($path, 'w');
 
-            if ($batchCount >= self::BATCH_SIZE) {
-                dispatch(new ProcessCompanyBatchImportJobUpsert($batch, $fieldMap));
-                Log::info('Dispatched batch with '.count($batch)." records (lines up to $lineNumber)");
-                $batch = [];
-                $batchCount = 0;
+                if ($handle === false) {
+                    throw new RuntimeException("Cannot write company chunk file: {$path}");
+                }
+
+                $chunkFiles[] = $path;
+                $rowsInChunk = 0;
+            }
+
+            fputcsv($handle, $line, '^', '"', '');
+            $rowsInChunk++;
+
+            if ($rowsInChunk >= self::CHUNK_SIZE) {
+                fclose($handle);
+                $handle = null;
             }
         }
 
-        if (! empty($batch)) {
-            dispatch(new ProcessCompanyBatchImportJobUpsert($batch, $fieldMap));
-            Log::info('Dispatched final batch with '.count($batch)." records (lines up to $lineNumber)");
+        if ($handle !== null) {
+            fclose($handle);
         }
 
-        Log::info("CompanyImportJob completed. Processed $lineNumber lines from CSV file");
         fclose($fileStream);
+
+        return $chunkFiles;
     }
 }
