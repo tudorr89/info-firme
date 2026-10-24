@@ -19,13 +19,22 @@ Route::get('/solicitare-stergere', CifRemovalForm::class)->name('cif-removal.cre
 Route::get('/up', fn () => response('OK', 200))->name('health');
 
 // Sitemaps - no session middleware: crawlers must not get a session cookie or
-// a Set-Cookie header on a file that rarely changes.
+// a Set-Cookie header on a file that rarely changes. The chunks are gzipped,
+// the index stays plain XML.
 Route::withoutMiddleware(['web'])->group(function () {
     Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.index');
-    Route::get('/sitemap-pages.xml', [SitemapController::class, 'pages'])->name('sitemap.pages');
-    Route::get('/sitemap-{number}.xml', [SitemapController::class, 'chunk'])
+    Route::get('/sitemap-pages.xml.gz', [SitemapController::class, 'pages'])->name('sitemap.pages');
+    Route::get('/sitemap-{number}.xml.gz', [SitemapController::class, 'chunk'])
         ->where('number', '[0-9]+')
         ->name('sitemap.chunk');
+
+    // Chunks generated before the switch to gzip, so an index already handed
+    // to a crawler keeps resolving.
+    Route::get('/sitemap-{number}.xml', [SitemapController::class, 'chunk'])
+        ->where('number', '[0-9]+')
+        ->name('sitemap.chunk.plain');
+
+    Route::get('/sitemap-pages.xml', [SitemapController::class, 'pages'])->name('sitemap.pages.plain');
 });
 
 Route::fallback(function () {

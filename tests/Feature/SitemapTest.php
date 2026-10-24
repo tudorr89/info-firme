@@ -52,15 +52,15 @@ class SitemapTest extends TestCase
         $this->artisan('sitemap:generate', ['--chunk' => 2])->assertSuccessful();
 
         $this->assertFileExists($this->path('sitemap.xml'));
-        $this->assertFileExists($this->path('sitemap-pages.xml'));
-        $this->assertFileExists($this->path('sitemap-1.xml'));
-        $this->assertFileExists($this->path('sitemap-2.xml'));
+        $this->assertFileExists($this->path('sitemap-pages.xml.gz'));
+        $this->assertFileExists($this->path('sitemap-1.xml.gz'));
+        $this->assertFileExists($this->path('sitemap-2.xml.gz'));
 
         $index = $this->contents('sitemap.xml');
         $this->assertStringContainsString('<sitemapindex', $index);
-        $this->assertStringContainsString('/sitemap-pages.xml', $index);
-        $this->assertStringContainsString('/sitemap-1.xml', $index);
-        $this->assertStringContainsString('/sitemap-2.xml', $index);
+        $this->assertStringContainsString('/sitemap-pages.xml.gz', $index);
+        $this->assertStringContainsString('/sitemap-1.xml.gz', $index);
+        $this->assertStringContainsString('/sitemap-2.xml.gz', $index);
         $this->assertStringNotContainsString('/sitemap-3.xml', $index);
     }
 
@@ -68,7 +68,7 @@ class SitemapTest extends TestCase
     {
         $this->artisan('sitemap:generate', ['--chunk' => 10])->assertSuccessful();
 
-        $pages = $this->contents('sitemap-pages.xml');
+        $pages = $this->gunzipped('sitemap-pages.xml.gz');
 
         $this->assertStringContainsString(route('company.search'), $pages);
         $this->assertStringContainsString(route('legal.terms'), $pages);
@@ -84,7 +84,7 @@ class SitemapTest extends TestCase
 
         $this->artisan('sitemap:generate', ['--chunk' => 50])->assertSuccessful();
 
-        $chunk = $this->contents('sitemap-1.xml');
+        $chunk = $this->gunzipped('sitemap-1.xml.gz');
 
         $this->assertStringContainsString(route('company.show', '11111111'), $chunk);
         $this->assertSame(1, substr_count($chunk, '<url>'));
@@ -107,7 +107,7 @@ class SitemapTest extends TestCase
 
         $this->artisan('sitemap:generate', ['--chunk' => 50])->assertSuccessful();
 
-        $chunk = $this->contents('sitemap-1.xml');
+        $chunk = $this->gunzipped('sitemap-1.xml.gz');
 
         $this->assertStringContainsString(route('company.show', '11111111'), $chunk);
         $this->assertStringNotContainsString(route('company.show', '22222222'), $chunk);
@@ -128,7 +128,7 @@ class SitemapTest extends TestCase
         $this->artisan('sitemap:generate', ['--chunk' => 50])->assertSuccessful();
 
         // No chunk file at all: the only row has no usable CUI.
-        $this->assertFileDoesNotExist($this->path('sitemap-1.xml'));
+        $this->assertFileDoesNotExist($this->path('sitemap-1.xml.gz'));
         $this->assertFileExists($this->path('sitemap.xml'));
     }
 
@@ -138,14 +138,14 @@ class SitemapTest extends TestCase
         $this->company('BETA S.R.L.', '22222222', 'J40/2/2024');
 
         $this->artisan('sitemap:generate', ['--chunk' => 1])->assertSuccessful();
-        $this->assertFileExists($this->path('sitemap-2.xml'));
+        $this->assertFileExists($this->path('sitemap-2.xml.gz'));
 
         Company::where('cui', '22222222')->delete();
 
         $this->artisan('sitemap:generate', ['--chunk' => 1])->assertSuccessful();
 
-        $this->assertFileExists($this->path('sitemap-1.xml'));
-        $this->assertFileDoesNotExist($this->path('sitemap-2.xml'));
+        $this->assertFileExists($this->path('sitemap-1.xml.gz'));
+        $this->assertFileDoesNotExist($this->path('sitemap-2.xml.gz'));
         $this->assertStringNotContainsString('/sitemap-2.xml', $this->contents('sitemap.xml'));
     }
 
@@ -163,14 +163,19 @@ class SitemapTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'application/xml; charset=UTF-8');
 
-        $this->get('/sitemap-pages.xml')->assertOk();
-        $this->get('/sitemap-1.xml')->assertOk();
+        $this->get('/sitemap-pages.xml.gz')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/x-gzip');
+
+        $chunk = $this->get('/sitemap-1.xml.gz')->assertOk()->assertHeader('Content-Type', 'application/x-gzip');
+
+        $this->assertStringContainsString('<urlset', (string) gzdecode($chunk->getContent()));
     }
 
     public function test_a_missing_sitemap_returns_404(): void
     {
         $this->get('/sitemap.xml')->assertNotFound();
-        $this->get('/sitemap-1.xml')->assertNotFound();
+        $this->get('/sitemap-1.xml.gz')->assertNotFound();
     }
 
     public function test_robots_txt_points_at_the_sitemap(): void
@@ -190,6 +195,11 @@ class SitemapTest extends TestCase
     private function contents(string $name): string
     {
         return (string) file_get_contents($this->path($name));
+    }
+
+    private function gunzipped(string $name): string
+    {
+        return (string) gzdecode($this->contents($name));
     }
 
     private function wipe(): void

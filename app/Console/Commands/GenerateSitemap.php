@@ -6,6 +6,7 @@ use App\Models\Company;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use RuntimeException;
 
 /**
  * Writes the sitemap files that `SitemapController` serves.
@@ -79,9 +80,9 @@ class GenerateSitemap extends Command
 
         $xml .= '</urlset>';
 
-        $this->writeAtomically($directory.'/sitemap-pages.xml', $xml);
+        $this->writeGzipped($directory.'/sitemap-pages.xml.gz', $xml);
 
-        $this->info('Generated sitemap-pages.xml ('.count($this->pages()).' URLs)');
+        $this->info('Generated sitemap-pages.xml.gz ('.count($this->pages()).' URLs)');
     }
 
     /**
@@ -123,9 +124,9 @@ class GenerateSitemap extends Command
 
                 $chunks++;
 
-                $this->writeAtomically($directory."/sitemap-{$chunks}.xml", $xml);
+                $this->writeGzipped($directory."/sitemap-{$chunks}.xml.gz", $xml);
 
-                $this->info("Generated sitemap-{$chunks}.xml ({$written} URLs)");
+                $this->info("Generated sitemap-{$chunks}.xml.gz ({$written} URLs)");
             });
 
         return $chunks;
@@ -151,12 +152,20 @@ class GenerateSitemap extends Command
     }
 
     /**
-     * Drop files left over from a previous run that had more chunks.
+     * Remove files a previous run left behind: plain `.xml` chunks (superseded
+     * by the gzipped ones, and they are what made the directory 529 MB) and
+     * chunks with a number higher than this run produced.
      */
     private function removeStaleFiles(string $directory, int $chunks): void
     {
         foreach (glob($directory.'/sitemap-*.xml') ?: [] as $file) {
-            $name = basename($file, '.xml');
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
+        foreach (glob($directory.'/sitemap-*.xml.gz') ?: [] as $file) {
+            $name = basename($file, '.xml.gz');
 
             if ($name === 'sitemap-pages') {
                 continue;
@@ -191,6 +200,21 @@ class GenerateSitemap extends Command
             .'    <loc>'.htmlspecialchars($loc, ENT_XML1)."</loc>\n"
             ."    <lastmod>{$lastmod}</lastmod>\n"
             ."  </sitemap>\n";
+    }
+
+    /**
+     * Gzipped sitemaps are ~10x smaller on disk and over the wire, and Google
+     * accepts them as long as the file name ends in `.gz`.
+     */
+    private function writeGzipped(string $path, string $contents): void
+    {
+        $compressed = gzencode($contents, 9);
+
+        if ($compressed === false) {
+            throw new RuntimeException("Could not gzip {$path}");
+        }
+
+        $this->writeAtomically($path, $compressed);
     }
 
     /**
