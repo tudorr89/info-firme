@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\Batches\ProcessNaturalPersonRepresentativeBatchImport;
 use App\Models\CaenCompany;
 use App\Models\Company;
 use App\Models\EUBranch;
@@ -117,6 +118,36 @@ class FullImportPipelineTest extends TestCase
         $this->assertSame(1, NaturalPersonRepresentative::where('company_id', $company->id)->count());
         $this->assertSame(1, EUBranch::where('company_id', $company->id)->count());
         $this->assertSame(0, LegalRepresentative::whereNull('company_id')->count());
+    }
+
+    public function test_a_company_with_several_representatives_keeps_all_of_them_across_batches(): void
+    {
+        $this->artisan('import:companies', ['file' => Storage::disk('local')->path('imports/od_firme.csv')])
+            ->assertSuccessful();
+
+        $fieldMap = [
+            'COD_INMATRICULARE' => 0,
+            'NUME' => 1,
+            'DATA_NASTERE' => 2,
+            'LOCALITATE_NASTERE' => 3,
+            'JUDET_NASTERE' => 4,
+            'TARA_NASTERE' => 5,
+            'CALITATE' => 6,
+        ];
+
+        // The ONRC files are not sorted, so the same registration can show up in
+        // a later batch. That must not remove the rows of the earlier batch.
+        (new ProcessNaturalPersonRepresentativeBatchImport([
+            ['J40/1234/2024', 'FIRST PERSON', '01/01/1980', 'Cluj', 'Cluj', 'Romania', 'membru'],
+        ], $fieldMap, 1))->handle();
+
+        (new ProcessNaturalPersonRepresentativeBatchImport([
+            ['J40/1234/2024', 'SECOND PERSON', '01/01/1981', 'Cluj', 'Cluj', 'Romania', 'membru'],
+        ], $fieldMap, 2))->handle();
+
+        $this->assertSame(2, NaturalPersonRepresentative::count());
+        $this->assertDatabaseHas('natural_person_representatives', ['full_name' => 'FIRST PERSON']);
+        $this->assertDatabaseHas('natural_person_representatives', ['full_name' => 'SECOND PERSON']);
     }
 
     public function test_pruning_removes_data_of_banned_companies(): void

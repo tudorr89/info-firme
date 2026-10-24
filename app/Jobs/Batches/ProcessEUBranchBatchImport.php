@@ -101,7 +101,6 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
         }
 
         if (! empty($insertData)) {
-            EUBranch::whereIn('registration', array_keys($companies))->delete();
             EUBranch::insert($insertData);
         }
     }

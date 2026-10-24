@@ -103,7 +103,6 @@ class ProcessNaturalPersonRepresentativeBatchImport implements ShouldQueue, Sile
         }
 
         if (! empty($insertData)) {
-            NaturalPersonRepresentative::whereIn('registration', array_keys($companies))->delete();
             NaturalPersonRepresentative::insert($insertData);
         }
     }

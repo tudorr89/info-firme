@@ -106,7 +106,6 @@ class ProcessLegalRepresentativeBatchImport implements ShouldQueue, Silenced
         }
 
         if (! empty($insertData)) {
-            LegalRepresentative::whereIn('registration', array_keys($companies))->delete();
             LegalRepresentative::insert($insertData);
         }
     }

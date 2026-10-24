@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Jobs\Batches\ProcessEUBranchBatchImport;
+use App\Models\EUBranch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -32,6 +33,11 @@ class EUBranchImportJob implements ShouldQueue
             'COD_FISCAL' => 4,
             'TARA' => 5,
         ];
+
+        // A full snapshot replaces the whole table: the ONRC files are not
+        // sorted by registration, so rows of the same company are spread over
+        // several batches and a per-batch delete would drop them again.
+        EUBranch::truncate();
 
         $fileStream = fopen($this->file, 'r');
         $batch = [];

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Jobs\Batches\ProcessNaturalPersonRepresentativeBatchImport;
+use App\Models\NaturalPersonRepresentative;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,6 +34,11 @@ class NaturalPersonRepresentativeImportJob implements ShouldQueue
             'TARA_NASTERE' => 5,
             'CALITATE' => 6,
         ];
+
+        // A full snapshot replaces the whole table: the ONRC files are not
+        // sorted by registration, so rows of the same company are spread over
+        // several batches and a per-batch delete would drop them again.
+        NaturalPersonRepresentative::truncate();
 
         $fileStream = fopen($this->file, 'r');
         $batch = [];

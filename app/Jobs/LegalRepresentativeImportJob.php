@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Jobs\Batches\ProcessLegalRepresentativeBatchImport;
+use App\Models\LegalRepresentative;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -36,6 +37,11 @@ class LegalRepresentativeImportJob implements ShouldQueue
             'JUDET' => 8,
             'TARA' => 9,
         ];
+
+        // A full snapshot replaces the whole table: the ONRC files are not
+        // sorted by registration, so rows of the same company are spread over
+        // several batches and a per-batch delete would drop them again.
+        LegalRepresentative::truncate();
 
         $fileStream = fopen($this->file, 'r');
         $batch = [];
