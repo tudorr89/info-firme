@@ -130,6 +130,48 @@ class CifRemovalApprovalTest extends TestCase
         $this->assertFalse(BannedCifService::isBanned(self::CUI));
     }
 
+    public function test_a_pending_request_can_be_deleted(): void
+    {
+        $request = $this->request(self::CUI);
+
+        $request->delete();
+
+        $this->assertDatabaseMissing('cif_removal_requests', ['id' => $request->id]);
+    }
+
+    public function test_an_approved_request_cannot_be_deleted(): void
+    {
+        $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);
+        $request = $this->request(self::CUI);
+
+        CifRemovalService::approve($request);
+        $request = $request->fresh();
+
+        // Deleting it would drop the CIF from the banned list again without any
+        // record of the decision, and the next import would resurrect it.
+        try {
+            $request->delete();
+            $this->fail('An approved request should not be deletable.');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('soluționată', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('cif_removal_requests', ['id' => $request->id, 'status' => 'approved']);
+        $this->assertTrue(BannedCifService::isBanned(self::CUI));
+    }
+
+    public function test_a_rejected_request_cannot_be_deleted_either(): void
+    {
+        $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);
+        $request = $this->request(self::CUI);
+
+        CifRemovalService::reject($request, null, 'Nu reprezintă firma.');
+
+        $this->expectException(\DomainException::class);
+
+        $request->fresh()->delete();
+    }
+
     public function test_the_reviewer_is_recorded(): void
     {
         $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);

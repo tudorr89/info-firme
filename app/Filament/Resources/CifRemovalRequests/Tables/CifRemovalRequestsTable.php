@@ -6,8 +6,7 @@ use App\Enums\CifRemovalStatus;
 use App\Models\CifRemovalRequest;
 use App\Services\CifRemovalService;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -114,11 +113,17 @@ class CifRemovalRequestsTable
                 EditAction::make()
                     ->label('Detalii')
                     ->icon(Heroicon::OutlinedEye),
+
+                // Only unresolved requests may be removed (spam, duplicates).
+                // A reviewed one is a decision record: rejecting it is the way
+                // to reverse it, so that the un-ban is auditable.
+                DeleteAction::make()
+                    ->label('Șterge')
+                    ->icon(Heroicon::OutlinedTrash)
+                    ->modalHeading('Ștergi cererea?')
+                    ->modalDescription('Se poate șterge doar o cerere nesoluționată. Firmele nu sunt afectate.')
+                    ->visible(fn (CifRemovalRequest $record): bool => $record->isPending()),
             ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->toolbarActions([]);
     }
 }

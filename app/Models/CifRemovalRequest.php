@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CifRemovalStatus;
 use App\Services\BannedCifService;
+use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,6 +45,16 @@ class CifRemovalRequest extends Model
         'reviewed_at',
     ];
 
+    /**
+     * Mirrors the column default, so a freshly created model is pending even
+     * before it is reloaded from the database.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => 'pending',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -63,12 +74,25 @@ class CifRemovalRequest extends Model
     /**
      * The banned-CIF list is cached, so it has to be dropped whenever a request
      * changes state — including an edit made directly in the admin panel.
+     *
+     * Deleting a reviewed request is refused: approval deletes the company data
+     * and bans the CIF, so silently removing the row would un-ban that CIF and
+     * the next import would bring the company back without any trace.
      */
     protected static function booted(): void
     {
         $flush = static fn () => BannedCifService::flush();
 
         static::saved($flush);
+
+        static::deleting(function (self $request): void {
+            if (! $request->isPending()) {
+                throw new DomainException(
+                    'O cerere soluționată nu poate fi ștearsă. Respinge-o, ca să fie înregistrată decizia.'
+                );
+            }
+        });
+
         static::deleted($flush);
     }
 
