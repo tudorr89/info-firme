@@ -7,12 +7,12 @@ use App\Models\Company;
 use App\Models\Status;
 use App\Services\CompanyStatusService;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Tests\TruncatesCommittedDatabase;
 
 class CompanyPresentationTest extends TestCase
 {
-    use RefreshDatabase;
+    use TruncatesCommittedDatabase;
 
     protected function setUp(): void
     {
@@ -27,15 +27,15 @@ class CompanyPresentationTest extends TestCase
 
     public function test_search_shows_only_active_companies(): void
     {
-        $active = $this->company('ACTIVE SRL', '11111111', 'J40/1/2024', 1048);
-        $obsolete = $this->company('OBSOLETE SRL', '22222222', 'J40/2/2024', 1049);
-        $unknown = $this->company('UNKNOWN SRL', '33333333', 'J40/3/2024', null);
+        $active = $this->company('ACTIVE ENERGY SRL', '11111111', 'J40/1/2024', 1048);
+        $obsolete = $this->company('OBSOLETE ENERGY SRL', '22222222', 'J40/2/2024', 1049);
+        $unknown = $this->company('UNKNOWN ENERGY SRL', '33333333', 'J40/3/2024', null);
 
-        $names = $this->searchResults('SRL')->pluck('name')->all();
+        $names = $this->searchResults('ENERGY')->pluck('name')->all();
 
-        $this->assertContains('ACTIVE SRL', $names);
-        $this->assertContains('UNKNOWN SRL', $names);
-        $this->assertNotContains('OBSOLETE SRL', $names);
+        $this->assertContains('ACTIVE ENERGY SRL', $names);
+        $this->assertContains('UNKNOWN ENERGY SRL', $names);
+        $this->assertNotContains('OBSOLETE ENERGY SRL', $names);
 
         $this->assertTrue(CompanyStatusService::isActive($active->fresh()));
         $this->assertFalse(CompanyStatusService::isActive($obsolete->fresh()));

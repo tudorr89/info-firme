@@ -32,10 +32,17 @@ class BannedCifTest extends TestCase
     public function test_the_enforced_list_is_part_of_the_effective_skip_list(): void
     {
         foreach (config('skip.always') as $cui) {
-            $this->assertContains($cui, config('skip.cifs'));
+            $this->assertContains($cui, BannedCifService::all());
         }
 
         $this->assertFalse(BannedCifService::isBanned('1234567'));
+    }
+
+    public function test_the_environment_variable_is_no_longer_used(): void
+    {
+        // Requests are stored in the database now; a stale SKIP_CIFS_IMPORT
+        // entry must not be able to ban a company silently.
+        $this->assertArrayNotHasKey('cifs', config('skip'));
     }
 
     public function test_company_delete_removes_the_company_and_every_related_row(): void

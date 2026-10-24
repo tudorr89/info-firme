@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\CifRemovalStatus;
 use App\Jobs\Batches\ProcessNaturalPersonRepresentativeBatchImport;
 use App\Models\CaenCompany;
+use App\Models\CifRemovalRequest;
 use App\Models\Company;
 use App\Models\EUBranch;
 use App\Models\LegalRepresentative;
@@ -35,7 +37,16 @@ class FullImportPipelineTest extends TestCase
         config([
             'import.disk' => 'local',
             'import.directory' => 'imports',
-            'skip.cifs' => [self::BANNED_CUI],
+        ]);
+
+        // A banned CIF is an approved removal request, the same way an operator
+        // would create it from the admin panel.
+        CifRemovalRequest::create([
+            'cui' => self::BANNED_CUI,
+            'requester_name' => 'Ion Popescu',
+            'requester_email' => 'ion.popescu@example.ro',
+            'reason' => 'Solicit eliminarea datelor firmei mele din aplicație.',
+            'status' => CifRemovalStatus::Approved,
         ]);
 
         $this->writeFixtures();

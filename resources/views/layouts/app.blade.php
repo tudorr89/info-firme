@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#DC2626">
+    <meta name="theme-color" content="#0f172a">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Favicon -->
@@ -28,51 +28,106 @@
     @livewireStyles
 </head>
 
-<body class="antialiased bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 text-slate-300 dark:text-slate-300">
-    <!-- Animated background gradient -->
+<body class="antialiased bg-slate-950 text-slate-200 selection:bg-violet-500/30 selection:text-white">
+    <!-- Animated background -->
     <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div class="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/20 via-transparent to-transparent rounded-full blur-3xl animate-pulse"></div>
-        <div class="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/20 via-transparent to-transparent rounded-full blur-3xl animate-pulse" style="animation-delay: 1s"></div>
-        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-pink-500/10 via-transparent to-transparent rounded-full blur-3xl animate-pulse" style="animation-delay: 2s"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(124,58,237,0.14),transparent_60%)]"></div>
+        <div class="absolute -top-32 -left-32 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute -bottom-40 -right-32 w-[28rem] h-[28rem] bg-indigo-600/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s"></div>
+        <div class="absolute top-1/3 left-1/2 w-72 h-72 bg-fuchsia-600/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 4s"></div>
     </div>
 
-    <!-- Header with Logo -->
-    <div class="fixed top-0 left-0 right-0 z-50 border-b border-white/10 backdrop-blur-md bg-slate-900/50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <x-logo />
-                <span class="text-xl font-bold text-white">
-                    lista-firme.info
-                </span>
-            </a>
+    <!-- Header -->
+    <header class="sticky top-0 z-50 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="{{ route('company.search') }}" class="flex items-center gap-3 group">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/25 transition-shadow group-hover:shadow-violet-500/40">
+                        <x-logo />
+                    </span>
+                    <span class="text-lg font-bold text-white tracking-tight">
+                        lista<span class="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">-firme</span>.info
+                    </span>
+                </a>
+
+                <nav class="flex items-center gap-1">
+                    <a href="{{ route('company.search') }}"
+                       class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors">
+                        Căutare
+                    </a>
+                    <a href="{{ route('legal.terms') }}"
+                       class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors">
+                        Termeni
+                    </a>
+                </nav>
+            </div>
         </div>
-    </div>
+    </header>
 
-    <!-- Main content with top padding for fixed header -->
-    <div class="pt-16">
+    <!-- Main content -->
+    <main class="min-h-[calc(100vh-4rem)]">
         @yield('content', $slot ?? '')
-    </div>
+    </main>
 
     <!-- Footer -->
-    <footer class="border-t border-white/10 bg-slate-900/50 backdrop-blur-md mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="flex flex-col items-center sm:items-start gap-1">
-                    <p class="text-sm text-slate-400">
-                        © 2026 lista-firme.info. Toate drepturile rezervate.
-                    </p>
-                    <p class="text-sm text-slate-500">
-                        Făcut cu <span class="text-red-400">❤</span> de
-                        <a href="mailto:tudorr89@gmail.com" class="text-purple-400 hover:text-purple-300 transition-colors">tudor</a>
+    <footer class="border-t border-white/10 bg-slate-950/70 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div>
+                    <a href="{{ route('company.search') }}" class="flex items-center gap-3">
+                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600">
+                            <x-logo />
+                        </span>
+                        <span class="text-white font-bold">lista-firme.info</span>
+                    </a>
+                    <p class="mt-4 text-sm text-slate-400 leading-relaxed">
+                        Caută și descoperă informații publice despre companii românești: CUI, adresă, reprezentanți legali și cod CAEN.
                     </p>
                 </div>
-                <a href="https://github.com/tudorr89/info-firme" target="_blank" rel="noopener noreferrer"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-slate-300 hover:text-white text-sm">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.343-3.369-1.343-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.545 2.914 1.209.092-.937.349-1.546.635-1.903-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
-                    </svg>
-                    GitHub
-                </a>
+
+                <div>
+                    <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Informații legale</h3>
+                    <ul class="mt-4 space-y-2 text-sm text-slate-400">
+                        <li>RTI Global Services SRL</li>
+                        <li>CUI: 51859625</li>
+                        <li>Nr. Reg. Com.: J2025037467000</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Link-uri</h3>
+                    <ul class="mt-4 space-y-2 text-sm">
+                        <li>
+                            <a href="{{ route('legal.terms') }}" class="text-slate-400 hover:text-white transition-colors">
+                                Termeni și Condiții
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('legal.privacy') }}" class="text-slate-400 hover:text-white transition-colors">
+                                Politica de Confidențialitate
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('cif-removal.create') }}" class="text-slate-400 hover:text-white transition-colors">
+                                Cerere de ștergere CIF
+                            </a>
+                        </li>
+                        <li>
+                            <a href="mailto:office@hostingonthe.cloud" class="text-slate-400 hover:text-white transition-colors">
+                                office@hostingonthe.cloud
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-10 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p class="text-xs text-slate-500">
+                    © {{ date('Y') }} lista-firme.info. Toate drepturile rezervate.
+                </p>
+                <p class="text-xs text-slate-500">
+                    Date publice din surse oficiale. Nu suntem afiliați cu ANAF sau ONRC.
+                </p>
             </div>
         </div>
     </footer>

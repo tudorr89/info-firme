@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Services\BannedCifService;
 use Illuminate\Support\Facades\Cache;
 
 class CompanyController extends Controller
@@ -11,6 +12,12 @@ class CompanyController extends Controller
     {
         // Validate CUI format (numeric only)
         if (! ctype_digit($cui)) {
+            abort(404);
+        }
+
+        // Banned CIFs are skipped at import time; a row that was imported
+        // before the ban is enforced must not be published either.
+        if (BannedCifService::isBanned($cui)) {
             abort(404);
         }
 

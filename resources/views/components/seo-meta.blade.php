@@ -4,6 +4,7 @@
     'type' => 'website',
     'company' => null,
     'canonical' => null,
+    'robots' => 'index, follow',
 ])
 
 <!-- Basic Meta Tags -->
@@ -14,8 +15,8 @@
 @endif
 
 <!-- Robots -->
-<meta name="robots" content="index, follow, max-image-preview:large">
-<meta name="googlebot" content="index, follow">
+<meta name="robots" content="{{ $robots }}, max-image-preview:large">
+<meta name="googlebot" content="{{ $robots }}">
 
 <!-- Language & Locale -->
 <meta property="og:locale" content="ro_RO">

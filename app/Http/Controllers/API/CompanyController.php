@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CompanyRequest;
 use App\Models\Company;
+use App\Services\BannedCifService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 
@@ -29,6 +30,10 @@ class CompanyController extends Controller
     public function __invoke(CompanyRequest $request): JsonResponse
     {
         if ($request->cui) {
+            if (BannedCifService::isBanned((string) $request->cui)) {
+                abort(404, 'Company not found');
+            }
+
             return response()->json($this->forCui((string) $request->cui));
         }
 
@@ -47,7 +52,7 @@ class CompanyController extends Controller
     private function forCui(string $cui): array
     {
         return Cache::remember("company_api_{$cui}", now()->addDay(), function () use ($cui) {
-            return Company::with(self::COMPANY_RELATIONS)
+            return BannedCifService::exclude(Company::with(self::COMPANY_RELATIONS))
                 ->where('cui', $cui)
                 ->preferActive()
                 ->orderByDesc('registration_date')

@@ -38,7 +38,7 @@ cp .env.example .env
 Instalare dependente
 ```sh
 composer install
-npm install
+bun install
 ```
 
 Configurare baza de date
@@ -60,7 +60,7 @@ php artisan migrate
 
 Build assets frontend
 ```sh
-npm run build
+bun run build
 ```
 
 ### Configurare Horizon

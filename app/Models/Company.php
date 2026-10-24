@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\BannedCifService;
 use App\Services\CompanyStatusService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -116,10 +117,13 @@ class Company extends Model
 
     /**
      * Limit the query to what may be presented publicly: obsolete companies are
-     * excluded when `companies.hide_obsolete` is enabled.
+     * excluded when `companies.hide_obsolete` is enabled, and banned CIFs are
+     * always excluded.
      */
     public function scopePresentable(Builder $query): Builder
     {
+        $query = BannedCifService::exclude($query);
+
         if (! CompanyStatusService::hidesObsolete()) {
             return $query;
         }
