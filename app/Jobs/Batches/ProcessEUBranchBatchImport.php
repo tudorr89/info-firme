@@ -24,6 +24,12 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
 
     public $backoff = [1, 5, 10];
 
+    /**
+     * Small chunks keep the IN(...) lookups out of MariaDB's Aria temp
+     * tables, which fail with 'Record has changed' under load.
+     */
+    private const CHUNK_SIZE = 500;
+
     public function __construct(
         private array $batch,
         private array $fieldMap,
@@ -62,19 +68,29 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
 
     private function processBatch(): void
     {
+        foreach (array_chunk($this->batch, self::CHUNK_SIZE) as $chunk) {
+            $this->processChunk($chunk);
+        }
+    }
+
+    /**
+     * @param  array<int, array<int, mixed>>  $chunk
+     */
+    private function processChunk(array $chunk): void
+    {
         $insertData = [];
         $now = now();
 
         $registrations = array_filter(array_map(
             fn (array $line) => $line[$this->fieldMap['COD_INMATRICULARE']] ?? null,
-            $this->batch
+            $chunk
         ));
 
         $companies = Company::whereIn('reg_com', $registrations)
             ->pluck('id', 'reg_com')
             ->all();
 
-        foreach ($this->batch as $line) {
+        foreach ($chunk as $line) {
             $registration = $line[$this->fieldMap['COD_INMATRICULARE']] ?? null;
 
             if (! $registration) {
