@@ -10,46 +10,64 @@ use Illuminate\Support\Facades\Cache;
 
 class CompanyController extends Controller
 {
+    /**
+     * Relations returned for a single company lookup.
+     *
+     * @var array<int, string>
+     */
+    private const COMPANY_RELATIONS = [
+        'address',
+        'info',
+        'status.details',
+        'caen.details',
+        'caen',
+        'legalRepresentatives',
+        'naturalPersonRepresentatives',
+        'euBranches',
+    ];
+
     public function __invoke(CompanyRequest $request): JsonResponse
     {
         if ($request->cui) {
-            $company = Cache::remember($request->cui, 60 * 60 * 24, function () use ($request) {
-                return Company::with([
-                    'address',
-                    'info',
-                    'status.details',
-                    'caen.details',
-                    'caen',
-                    'legalRepresentatives',
-                    'naturalPersonRepresentatives',
-                    'euBranches',
-                ])
-                    ->where('cui', $request->cui)
-                    ->preferActive()
-                    ->orderByDesc('registration_date')
-                    ->firstOrFail();
-            });
-
-            return response()->json($company);
+            return response()->json($this->forCui((string) $request->cui));
         }
 
-        $company = Cache::remember($request->company, 60 * 60 * 24, function () use ($request) {
-            return Company::with([
-                'address',
-                'info',
-                'status.details',
-                'caen.details',
-                'caen',
-                'legalRepresentatives',
-                'naturalPersonRepresentatives',
-                'euBranches',
-            ])
-                ->presentable()
-                ->where('name', 'LIKE', $request->company.'%')
-                ->orderByDesc('registration_date')
-                ->paginate();
-        });
+        return response()->json($this->forName((string) $request->company));
+    }
 
-        return response()->json($company);
+    /**
+     * A CIF can belong to more than one company (an old, deregistered company
+     * and a newly registered one), so the still operating company is returned.
+     *
+     * Arrays are cached instead of models: unserializing Eloquent models needs
+     * them to be allowlisted and breaks whenever the model changes.
+     *
+     * @return array<string, mixed>
+     */
+    private function forCui(string $cui): array
+    {
+        return Cache::remember("company_api_{$cui}", now()->addDay(), function () use ($cui) {
+            return Company::with(self::COMPANY_RELATIONS)
+                ->where('cui', $cui)
+                ->preferActive()
+                ->orderByDesc('registration_date')
+                ->firstOrFail()
+                ->toArray();
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function forName(string $name): array
+    {
+        return Cache::remember('company_api_name_'.md5($name), now()->addDay(), function () use ($name) {
+            return Company::with(self::COMPANY_RELATIONS)
+                ->presentable()
+                ->where('name', 'LIKE', $name.'%')
+                ->orderByDesc('registration_date')
+                ->paginate()
+                ->toArray();
+        });
     }
 }

@@ -113,11 +113,11 @@ return [
     | Cache Serializable Classes
     |--------------------------------------------------------------------------
     |
-    | This option controls which classes may be deserialized from the cache.
-    | An empty array allows all classes to be deserialized.
+    | Classes that may be deserialized from the cache. Leaving this unset keeps
+    | PHP's default behaviour (all classes). An empty array is NOT "allow all":
+    | it is passed to unserialize() as allowed_classes => [], which turns every
+    | cached object into __PHP_Incomplete_Class.
     |
     */
-
-    'serializable_classes' => [],
 
 ];
