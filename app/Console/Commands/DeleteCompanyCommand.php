@@ -15,7 +15,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
-#[Signature('company:delete {cif : The CIF/CUI of the company to delete}')]
+#[Signature('company:delete {cif : The CIF/CUI of the company to delete} {--force : Skip the confirmation prompt}')]
 #[Description('Delete a company and all its related data by CIF/CUI')]
 class DeleteCompanyCommand extends Command
 {
@@ -33,7 +33,8 @@ class DeleteCompanyCommand extends Command
 
         $this->info("Found company: {$company->name} (CUI: {$company->cui}, reg_com: {$company->reg_com})");
 
-        if (! $this->confirm('Are you sure you want to delete this company and all its related data?', false)) {
+        if (! $this->option('force')
+            && ! $this->confirm('Are you sure you want to delete this company and all its related data?', false)) {
             $this->info('Operation cancelled.');
 
             return self::SUCCESS;
