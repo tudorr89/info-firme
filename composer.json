@@ -14,7 +14,6 @@
         "laravel/framework": "^13.0",
         "laravel/horizon": "^5.24",
         "laravel/octane": "^2.3",
-        "laravel/pulse": "^1.4",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "opcodesio/log-viewer": "^3.18",

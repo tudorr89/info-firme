@@ -46,10 +46,6 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Horizon')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->url('/admin/horizon'),
-                Action::make('pulse')
-                    ->label('Pulse')
-                    ->icon('heroicon-o-puzzle-piece')
-                    ->url('/admin/pulse'),
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
