@@ -199,7 +199,8 @@ class CifRemovalFormTest extends TestCase
             $payload = $request->data();
 
             return $request->method() === 'POST'
-                && str_contains($request->url(), 'gotify.test/message?token=test-token')
+                && $request->url() === 'https://gotify.test/message'
+                && $request->hasHeader('X-Gotify-Key', 'test-token')
                 && $payload['title'] === 'Cerere nouă de ștergere CIF '.self::CUI
                 && str_contains($payload['message'], 'TEST COMPANY S.R.L.')
                 && str_contains($payload['message'], 'ion.popescu@example.ro')

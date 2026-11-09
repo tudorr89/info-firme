@@ -6,6 +6,7 @@ use App\Livewire\CompanySearch;
 use App\Models\Company;
 use App\Models\Status;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 use Tests\TestCase;
 use Tests\TruncatesCommittedDatabase;
@@ -163,6 +164,26 @@ class CompanySearchTest extends TestCase
         $component->search = 'rti';
 
         $this->assertFalse($component->isTooGeneric());
+    }
+
+    public function test_it_stops_answering_after_too_many_searches_from_one_ip(): void
+    {
+        $this->company('RTI GLOBAL SERVICES S.R.L.', '51859625', 'J2025037467000');
+
+        $component = new CompanySearch;
+        $component->search = 'rti';
+
+        // 60 searches per minute are allowed; the 61st is answered with an
+        // empty result set instead of another pair of indexed queries.
+        for ($attempt = 1; $attempt <= 60; $attempt++) {
+            $this->assertCount(1, $component->topResults());
+        }
+
+        $this->assertFalse($component->throttled);
+        $this->assertCount(0, $component->topResults());
+        $this->assertTrue($component->throttled);
+
+        RateLimiter::clear('company-search:'.request()->ip());
     }
 
     public function test_the_search_redirects_to_the_company_page(): void

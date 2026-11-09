@@ -47,11 +47,14 @@ final class GotifyNotifier
         $config = config('skip.gotify');
 
         try {
+            // The token travels in a header, not in the query string: a URL with
+            // it would end up in exception messages and HTTP client logs.
             $response = Http::timeout(5)
                 ->acceptJson()
                 ->asJson()
+                ->withHeaders(['X-Gotify-Key' => (string) $config['token']])
                 ->post(
-                    rtrim((string) $config['url'], '/').'/message?token='.urlencode((string) $config['token']),
+                    rtrim((string) $config['url'], '/').'/message',
                     [
                         'title' => $title,
                         'message' => $message,

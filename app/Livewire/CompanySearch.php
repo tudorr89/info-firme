@@ -7,6 +7,7 @@ use App\Models\Status;
 use App\Services\BannedCifService;
 use App\Services\CompanyStatusService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -37,7 +38,16 @@ class CompanySearch extends Component
 
     private const VISIBLE_LIMIT = 10;
 
+    /**
+     * The search box fires one request per typing pause, and each request runs
+     * two indexed queries. The limit keeps a script from turning that into a
+     * database load; a human typist stays far below it.
+     */
+    private const SEARCHES_PER_MINUTE = 60;
+
     public string $search = '';
+
+    public bool $throttled = false;
 
     public function selectCompany(int $companyId): void
     {
@@ -55,6 +65,19 @@ class CompanySearch extends Component
         if (mb_strlen($search) < self::MIN_QUERY_LENGTH) {
             return new Collection;
         }
+
+        // `request()->ip()` is the visitor, not the tunnel: TrustProxies trusts
+        // the X-Forwarded-For header that cloudflared/Caddy set.
+        $throttleKey = 'company-search:'.request()->ip();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::SEARCHES_PER_MINUTE)) {
+            $this->throttled = true;
+
+            return new Collection;
+        }
+
+        RateLimiter::hit($throttleKey, 60);
+        $this->throttled = false;
 
         $ids = $this->candidateIds($search);
 

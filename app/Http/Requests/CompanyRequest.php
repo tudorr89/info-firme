@@ -12,7 +12,9 @@ class CompanyRequest extends FormRequest
     {
         return [
             'cui' => ['required_if:company,null', 'exists:companies,cui'],
-            'company' => ['required_if:cui,null'],
+            // A one or two letter name prefix matches an unreasonable part of
+            // the 4M-row table, so it is rejected before the query runs.
+            'company' => ['required_if:cui,null', 'min:3'],
         ];
     }
 

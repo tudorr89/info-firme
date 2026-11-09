@@ -4,6 +4,16 @@
 {
 	admin off
 	auto_https off
+
+	# The tunnel (cloudflared) reaches this LB from a private address and puts the
+	# visitor address in CF-Connecting-IP. Trusting only the private ranges lets
+	# {http.request.client_ip} be the real visitor when that header is there and
+	# the peer address otherwise, so the per-IP rate limits are not a single
+	# global bucket. Never forward a client-supplied CF-Connecting-IP blindly.
+	servers {
+		trusted_proxies static private_ranges
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
+	}
 }
 
 # Load balance between api-1 and api-2
@@ -39,6 +49,6 @@
           header_up X-Forwarded-Host {http.request.host}
           header_up X-Forwarded-Port {http.request.port}
           header_up X-Forwarded-Proto {http.request.proto}
-          header_up X-Forwarded-For {http.request.remote.host}
+          header_up X-Forwarded-For {http.request.client_ip}
       }
 }

@@ -72,7 +72,11 @@
                     </div>
                 @elseif(mb_strlen(trim($search)) >= 2)
                     <div wire:loading.remove wire:target="search" class="border-t border-white/10 px-5 py-6 text-center">
-                        @if($tooGeneric)
+                        @if($throttled)
+                            <p class="text-sm text-slate-400">
+                                Prea multe căutări într-un minut. Așteaptă puțin și încearcă din nou.
+                            </p>
+                        @elseif($tooGeneric)
                             <p class="text-sm text-slate-400">
                                 „<span class="text-white">{{ $search }}</span>" este prea general.
                             </p>

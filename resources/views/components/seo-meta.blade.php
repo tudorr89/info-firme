@@ -95,5 +95,7 @@
     }
 @endphp
 <script type="application/ld+json">
-{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+{{-- ONRC data is untrusted: the hex flags keep a name containing `</script>`
+     from closing the tag and injecting markup. --}}
+{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
