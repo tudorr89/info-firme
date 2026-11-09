@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\CifRemovalStatus;
 use App\Livewire\CompanySearch;
+use App\Models\CifRemovalRequest;
 use App\Models\Company;
 use App\Models\Status;
+use App\Services\BannedCifService;
 use Tests\TestCase;
 use Tests\TruncatesCommittedDatabase;
 
@@ -50,6 +53,26 @@ class BannedCifVisibilityTest extends TestCase
         $names = $component->topResults()->pluck('name')->all();
 
         $this->assertSame(['SAVU CONSTRUCT S.R.L.'], $names);
+    }
+
+    public function test_an_approved_removal_request_keeps_the_company_out_of_search(): void
+    {
+        $this->company('SOCIETATEA MEA S.R.L.', self::ALLOWED_CUI, self::ALLOWED_REG_COM);
+
+        CifRemovalRequest::create([
+            'cui' => self::ALLOWED_CUI,
+            'company_name' => 'SOCIETATEA MEA S.R.L.',
+            'requester_name' => 'Ion Popescu',
+            'requester_email' => 'ion.popescu@example.ro',
+            'reason' => 'Solicit eliminarea datelor firmei mele din aplicație.',
+            'status' => CifRemovalStatus::Approved,
+        ]);
+        BannedCifService::flush();
+
+        $component = new CompanySearch;
+        $component->search = 'societate';
+
+        $this->assertCount(0, $component->topResults());
     }
 
     public function test_the_banned_company_is_not_returned_by_cui_search(): void

@@ -56,8 +56,9 @@ final class CompanyDeletionService
 
     public static function forgetCaches(string $cui): void
     {
-        Cache::forget("company_page_{$cui}");
+        Cache::forget("company_page_v2_{$cui}");
         Cache::forget("company_api_{$cui}");
+        CompanyApiCache::forgetNames();
     }
 
     /**
@@ -90,7 +91,7 @@ final class CompanyDeletionService
     /**
      * @return array{companies: int, addresses: int, infos: int, statuses: int, caen_companies: int, legal_representatives: int, natural_person_representatives: int, e_u_branches: int}
      */
-    private static function emptySummary(): array
+    public static function emptySummary(): array
     {
         return [
             'companies' => 0,

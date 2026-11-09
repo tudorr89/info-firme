@@ -100,6 +100,36 @@ class CompanyApiTest extends TestCase
         $this->assertNotContains('ALFA OBSOLETE SRL', $names);
     }
 
+    public function test_page_two_is_not_served_from_the_page_one_cache(): void
+    {
+        for ($index = 1; $index <= 16; $index++) {
+            $this->createCompany(
+                str_pad((string) $index, 8, '0', STR_PAD_LEFT),
+                'J40/'.(100 + $index).'/2024',
+                1048,
+                sprintf('ALFA COMPANY %02d SRL', $index),
+            );
+        }
+
+        $first = $this->getJson('/api/v1/info?company=ALFA')->assertOk();
+        $this->assertSame(1, $first->json('current_page'));
+        $this->assertCount(15, $first->json('data'));
+
+        // The page is part of the cache key: without it, page 2 replays page 1.
+        $second = $this->getJson('/api/v1/info?company=ALFA&page=2')->assertOk();
+        $this->assertSame(2, $second->json('current_page'));
+        $this->assertCount(1, $second->json('data'));
+    }
+
+    public function test_a_name_search_needs_at_least_three_characters(): void
+    {
+        $this->createCompany('11111111', 'J40/30/2024', 1048, 'ALFA ACTIVE SRL');
+
+        // A 1-2 character prefix matches an unreasonable part of the table.
+        $this->getJson('/api/v1/info?company=AL')->assertNotFound();
+        $this->getJson('/api/v1/info?company=ALF')->assertOk();
+    }
+
     private function createCompany(
         string $cui,
         string $regCom,

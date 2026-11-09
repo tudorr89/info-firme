@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CompanyRequest;
 use App\Models\Company;
 use App\Services\BannedCifService;
+use App\Services\CompanyApiCache;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Cache;
 
 class CompanyController extends Controller
@@ -21,7 +23,6 @@ class CompanyController extends Controller
         'info',
         'status.details',
         'caen.details',
-        'caen',
         'legalRepresentatives',
         'naturalPersonRepresentatives',
         'euBranches',
@@ -66,12 +67,14 @@ class CompanyController extends Controller
      */
     private function forName(string $name): array
     {
-        return Cache::remember('company_api_name_'.md5($name), now()->addDay(), function () use ($name) {
+        $page = Paginator::resolveCurrentPage();
+
+        return Cache::remember(CompanyApiCache::nameKey($name, $page), now()->addDay(), function () use ($name, $page) {
             return Company::with(self::COMPANY_RELATIONS)
                 ->presentable()
                 ->where('name', 'LIKE', $name.'%')
                 ->orderByDesc('registration_date')
-                ->paginate()
+                ->paginate(page: $page)
                 ->toArray();
         });
     }

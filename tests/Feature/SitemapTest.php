@@ -167,9 +167,18 @@ class SitemapTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'application/x-gzip');
 
-        $chunk = $this->get('/sitemap-1.xml.gz')->assertOk()->assertHeader('Content-Type', 'application/x-gzip');
+        $chunk = $this->get('/sitemap-1.xml.gz')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/x-gzip')
+            ->assertHeader('ETag');
 
-        $this->assertStringContainsString('<urlset', (string) gzdecode($chunk->getContent()));
+        // `response()->file()` streams the file instead of loading it into the
+        // response body, so the content is read from disk.
+        $this->assertStringContainsString('<urlset', $this->gunzipped('sitemap-1.xml.gz'));
+
+        // A crawler that revalidates gets a 304 instead of the whole file.
+        $this->get('/sitemap-1.xml.gz', ['If-None-Match' => $chunk->headers->get('ETag')])
+            ->assertStatus(304);
     }
 
     public function test_a_missing_sitemap_returns_404(): void

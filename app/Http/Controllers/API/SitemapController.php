@@ -60,10 +60,22 @@ class SitemapController extends Controller
             abort(404, self::NOT_FOUND);
         }
 
-        return response((string) file_get_contents($path), 200, [
+        // `response()->file()` streams from disk and adds Last-Modified, so a
+        // crawler revalidating the sitemap gets a 304 instead of a full
+        // download. The ETag has to be enabled explicitly, and Laravel does not
+        // run Symfony's `prepare()` on the response, so the conditional check
+        // is done here.
+        $response = response()->file($path, [
             'Content-Type' => $contentType,
             'Cache-Control' => 'public, max-age='.self::CACHE_SECONDS,
         ]);
+        $response->setAutoEtag();
+
+        if ($response->isNotModified(request())) {
+            $response->setNotModified();
+        }
+
+        return $response;
     }
 
     private function path(string $name): string

@@ -3,10 +3,16 @@
 namespace Tests\Feature;
 
 use App\Livewire\CompanySearch;
+use App\Models\Address;
+use App\Models\Caen;
+use App\Models\CaenCompany;
 use App\Models\Company;
+use App\Models\LegalRepresentative;
+use App\Models\Nomenclator;
 use App\Models\Status;
 use App\Services\CompanyStatusService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Tests\TruncatesCommittedDatabase;
 
@@ -105,6 +111,64 @@ class CompanyPresentationTest extends TestCase
         $this->assertNotNull($resolved);
         $this->assertSame('RADIATED COMPANY SRL', $resolved->name);
         $this->assertFalse((bool) $resolved->is_active);
+    }
+
+    public function test_a_cached_company_page_issues_no_relation_queries(): void
+    {
+        $company = $this->company('CACHED COMPANY S.R.L.', '77777777', 'J40/77/2024', 1048);
+
+        Address::create([
+            'company_id' => $company->id,
+            'country' => 'România',
+            'city' => 'București Sectorul 3',
+            'county' => 'București',
+            'street' => 'BARBU LĂZĂREANU',
+            'number' => '2',
+        ]);
+
+        Caen::create([
+            'class' => 6210,
+            'version' => 3,
+            'section' => 'K',
+            'division' => 62,
+            'group' => 621,
+            'name' => 'Activități de realizare a soft-ului la comandă',
+        ]);
+
+        CaenCompany::create(['registration' => 'J40/77/2024', 'code' => 6210, 'version' => 3]);
+
+        LegalRepresentative::create([
+            'company_id' => $company->id,
+            'registration' => 'J40/77/2024',
+            'person_name' => 'POPESCU ION',
+            'role' => 'administrator',
+        ]);
+
+        Nomenclator::create(['code' => 1048, 'description' => 'funcțiune']);
+
+        // The first request warms the cache with the company and its relations.
+        $this->get(route('company.show', '77777777'))->assertOk();
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        // A cache hit rebuilds the models from the cached arrays, so it must
+        // not reload any relation — and the page must still be complete,
+        // including the nested `status.details` relation.
+        $this->get(route('company.show', '77777777'))
+            ->assertOk()
+            ->assertSee('CACHED COMPANY S.R.L.')
+            ->assertSee('funcțiune')
+            ->assertSee('BARBU LĂZĂREANU')
+            ->assertSee('6210')
+            ->assertSee('Activități de realizare a soft-ului la comandă')
+            // The section only renders when the restored representatives
+            // relation is a non-empty collection.
+            ->assertSee('Reprezentanti');
+
+        $this->assertSame([], $queries, implode(PHP_EOL, $queries));
     }
 
     /**

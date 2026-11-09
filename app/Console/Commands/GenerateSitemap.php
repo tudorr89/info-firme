@@ -225,8 +225,17 @@ class GenerateSitemap extends Command
     {
         $temporary = $path.'.tmp';
 
-        file_put_contents($temporary, $contents);
-        rename($temporary, $path);
+        if (file_put_contents($temporary, $contents) === false) {
+            throw new RuntimeException("Could not write {$temporary}");
+        }
+
+        // A failed rename would leave the old file in place while the caller
+        // believes the new one was written.
+        if (! rename($temporary, $path)) {
+            unlink($temporary);
+
+            throw new RuntimeException("Could not replace {$path}");
+        }
     }
 
     private function directory(): string
