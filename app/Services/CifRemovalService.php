@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\CifRemovalStatus;
 use App\Models\CifRemovalRequest;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Approving or rejecting a CIF removal request.
@@ -18,18 +19,32 @@ use App\Models\User;
 final class CifRemovalService
 {
     /**
+     * Approving is idempotent: the row is locked and re-checked inside the
+     * transaction, so a double click (or two administrators at once) cannot
+     * approve the same request twice and run the deletion a second time.
+     *
      * @return array<string, int>
      */
     public static function approve(CifRemovalRequest $request, ?User $reviewer = null, ?string $note = null): array
     {
-        $request->update([
-            'status' => CifRemovalStatus::Approved,
-            'review_note' => $note,
-            'reviewed_by' => $reviewer?->getKey(),
-            'reviewed_at' => now(),
-        ]);
+        return DB::transaction(function () use ($request, $reviewer, $note): array {
+            $locked = CifRemovalRequest::query()
+                ->lockForUpdate()
+                ->find($request->getKey());
 
-        return CompanyDeletionService::deleteByCui($request->cui);
+            if (! $locked instanceof CifRemovalRequest || ! $locked->isPending()) {
+                return CompanyDeletionService::emptySummary();
+            }
+
+            $locked->update([
+                'status' => CifRemovalStatus::Approved,
+                'review_note' => $note,
+                'reviewed_by' => $reviewer?->getKey(),
+                'reviewed_at' => now(),
+            ]);
+
+            return CompanyDeletionService::deleteByCui($locked->cui);
+        });
     }
 
     public static function reject(CifRemovalRequest $request, ?User $reviewer = null, ?string $note = null): void

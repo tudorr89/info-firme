@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\CifRemovalStatus;
+use App\Filament\Resources\CifRemovalRequests\Pages\EditCifRemovalRequest;
 use App\Filament\Resources\CifRemovalRequests\Pages\ListCifRemovalRequests;
-use App\Livewire\CompanySearch;
 use App\Models\Address;
 use App\Models\CaenCompany;
 use App\Models\CifRemovalRequest;
@@ -15,10 +15,10 @@ use App\Models\User;
 use App\Services\BannedCifService;
 use App\Services\CifRemovalService;
 use Filament\Actions\Testing\TestAction;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Tests\TestCase;
-use Tests\TruncatesCommittedDatabase;
 
 /**
  * An approved removal request has to behave exactly like a CIF banned in code:
@@ -27,7 +27,7 @@ use Tests\TruncatesCommittedDatabase;
  */
 class CifRemovalApprovalTest extends TestCase
 {
-    use TruncatesCommittedDatabase;
+    use RefreshDatabase;
 
     private const CUI = '12345678';
 
@@ -85,24 +85,59 @@ class CifRemovalApprovalTest extends TestCase
         $this->get('/api/v1/info?cui='.self::CUI)->assertNotFound();
     }
 
-    public function test_an_approved_cif_is_not_returned_by_search(): void
-    {
-        $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);
-        $this->company('ALTĂ SOCIETATE S.R.L.', self::OTHER_CUI, self::OTHER_REG_COM);
-
-        CifRemovalService::approve($this->request(self::CUI));
-
-        $component = new CompanySearch;
-        $component->search = 'societate';
-
-        $this->assertSame(['ALTĂ SOCIETATE S.R.L.'], $component->topResults()->pluck('name')->all());
-    }
-
     public function test_the_approved_cif_is_skipped_by_future_imports(): void
     {
         CifRemovalService::approve($this->request(self::CUI));
 
         $this->assertContains(self::CUI, BannedCifService::all());
+    }
+
+    public function test_approving_the_same_request_twice_is_a_no_op(): void
+    {
+        $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);
+        $request = $this->request(self::CUI);
+
+        CifRemovalService::approve($request, null, 'Prima aprobare.');
+        $reviewedAt = $request->fresh()->reviewed_at;
+
+        $deleted = CifRemovalService::approve($request->fresh(), null, 'A doua aprobare.');
+
+        $this->assertSame(0, $deleted['companies']);
+        $this->assertSame('Prima aprobare.', $request->fresh()->review_note);
+        $this->assertTrue($reviewedAt->equalTo($request->fresh()->reviewed_at));
+        $this->assertSame(CifRemovalStatus::Approved, $request->fresh()->status);
+    }
+
+    public function test_an_approved_cif_disappears_from_cached_name_searches(): void
+    {
+        $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);
+        $this->company('ALTĂ SOCIETATE S.R.L.', self::OTHER_CUI, self::OTHER_REG_COM);
+
+        // Warm the name-search cache before the approval.
+        $this->getJson('/api/v1/info?company=SOCIETATEA MEA')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        CifRemovalService::approve($this->request(self::CUI));
+
+        $this->getJson('/api/v1/info?company=SOCIETATEA MEA')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_the_edit_page_hides_delete_for_a_resolved_request_only(): void
+    {
+        $this->actingAs($this->admin());
+
+        $pending = $this->request(self::CUI);
+        Livewire::test(EditCifRemovalRequest::class, ['record' => $pending->getRouteKey()])
+            ->assertActionVisible('delete');
+
+        $resolved = $this->request(self::OTHER_CUI);
+        CifRemovalService::reject($resolved, null, 'Nu reprezintă firma.');
+
+        Livewire::test(EditCifRemovalRequest::class, ['record' => $resolved->fresh()->getRouteKey()])
+            ->assertActionHidden('delete');
     }
 
     public function test_rejecting_a_request_changes_nothing(): void
