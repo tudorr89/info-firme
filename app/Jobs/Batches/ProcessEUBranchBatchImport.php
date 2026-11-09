@@ -82,7 +82,7 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
         $now = now();
 
         $registrations = array_filter(array_map(
-            fn (array $line) => $line[$this->fieldMap['COD_INMATRICULARE']] ?? null,
+            fn (array $line) => trim((string) ($line[$this->fieldMap['COD_INMATRICULARE']] ?? '')),
             $chunk
         ));
 
@@ -91,9 +91,11 @@ class ProcessEUBranchBatchImport implements ShouldQueue, Silenced
             ->all();
 
         foreach ($chunk as $line) {
-            $registration = $line[$this->fieldMap['COD_INMATRICULARE']] ?? null;
+            // The ONRC files are not consistently trimmed, and the company
+            // import trims this column too, so both sides must match.
+            $registration = trim((string) ($line[$this->fieldMap['COD_INMATRICULARE']] ?? ''));
 
-            if (! $registration) {
+            if ($registration === '') {
                 continue;
             }
 

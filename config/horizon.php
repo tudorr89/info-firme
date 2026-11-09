@@ -190,7 +190,7 @@ return [
             'maxJobs' => 0,
             'memory' => 128,
             'tries' => 1,
-            'timeout' => 1200,
+            'timeout' => 1800,
             'nice' => 0,
         ],
     ],
@@ -201,7 +201,7 @@ return [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
-                'timeout' => 1200,
+                'timeout' => 1800,
             ],
         ],
 

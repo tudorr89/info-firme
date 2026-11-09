@@ -26,7 +26,7 @@ class ImportRelatedDataJob implements ShouldQueue, Silenced
 
     public function handle(ImportPipeline $pipeline): void
     {
-        $dispatched = $pipeline->dispatchRelated();
+        $dispatched = $pipeline->dispatchDeferred();
 
         Log::info('Related ONRC import dispatched', ['files' => $dispatched]);
     }

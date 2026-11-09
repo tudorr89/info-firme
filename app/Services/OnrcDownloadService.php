@@ -217,14 +217,15 @@ class OnrcDownloadService
 
     /**
      * File downloads are large and the host is slow, so the read timeout is
-     * generous and retries back off over several minutes.
+     * generous. The defaults mirror `config/services.php`; the retry budget is
+     * kept at 1 so the HTTP attempts fit inside the job timeout.
      */
     private function downloadRequest(): PendingRequest
     {
-        return Http::timeout((int) config('services.onrc.download_timeout', 1800))
+        return Http::timeout((int) config('services.onrc.download_timeout', 1500))
             ->connectTimeout(15)
             ->retry(
-                (int) config('services.onrc.download_retries', 3),
+                (int) config('services.onrc.download_retries', 1),
                 fn (int $attempt) => min($attempt * 15000, 120000),
                 throw: false,
             );

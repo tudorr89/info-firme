@@ -40,6 +40,16 @@ class CompanyLinkService
     ];
 
     /**
+     * Orphan pruning runs on the production database, where a single DELETE
+     * can match millions of rows and hold locks (and a huge undo log) for
+     * minutes. Deleting in id windows keeps every statement short. The window
+     * size is injectable for tests only.
+     */
+    private const PRUNE_CHUNK = 10000;
+
+    public function __construct(private readonly int $pruneChunk = self::PRUNE_CHUNK) {}
+
+    /**
      * @return array<string, int> number of rows linked, keyed by table
      */
     public function linkAll(): array
@@ -62,25 +72,40 @@ class CompanyLinkService
     {
         $pruned = [];
 
-        foreach (self::LINKED_TABLES as $table) {
-            $pruned[$table] = DB::delete(
-                "DELETE related FROM {$table} related
-                 LEFT JOIN companies company ON company.reg_com = related.registration
-                 WHERE company.id IS NULL"
-            );
-        }
-
-        foreach (self::REGISTRATION_TABLES as $table) {
-            $pruned[$table] = DB::delete(
-                "DELETE related FROM {$table} related
-                 LEFT JOIN companies company ON company.reg_com = related.registration
-                 WHERE company.id IS NULL"
-            );
+        foreach ([...self::LINKED_TABLES, ...self::REGISTRATION_TABLES] as $table) {
+            $pruned[$table] = $this->pruneTable($table);
         }
 
         Log::info('Orphan import rows pruned', $pruned);
 
         return $pruned;
+    }
+
+    private function pruneTable(string $table): int
+    {
+        $pruned = 0;
+
+        // Keyset pagination: every window continues after the highest id it
+        // saw, so the scan never restarts from the beginning of the table.
+        $lastId = 0;
+
+        while (true) {
+            $ids = DB::table($table)
+                ->leftJoin('companies', 'companies.reg_com', '=', "{$table}.registration")
+                ->whereNull('companies.id')
+                ->where("{$table}.id", '>', $lastId)
+                ->orderBy("{$table}.id")
+                ->limit($this->pruneChunk)
+                ->pluck("{$table}.id");
+
+            if ($ids->isEmpty()) {
+                return $pruned;
+            }
+
+            $lastId = (int) $ids->max();
+
+            $pruned += DB::table($table)->whereIn('id', $ids->all())->delete();
+        }
     }
 
     /**

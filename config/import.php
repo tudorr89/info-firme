@@ -50,4 +50,25 @@ return [
         'od_sucursale_alte_state_membre.csv' => EUBranchImportJob::class,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Deferred Import
+    |--------------------------------------------------------------------------
+    |
+    | Files that link to `companies`. They are never dispatched together with
+    | the rest of the files: the company import queues them from its batch
+    | `then` callback (through ImportRelatedDataJob), once every company row is
+    | written. Running them earlier would silently skip rows and, because some
+    | of those imports truncate their table first, could duplicate data.
+    |
+    */
+
+    'deferred' => [
+        'od_stare_firma.csv',
+        'od_caen_autorizat.csv',
+        'od_reprezentanti_legali.csv',
+        'od_reprezentanti_if.csv',
+        'od_sucursale_alte_state_membre.csv',
+    ],
+
 ];

@@ -136,6 +136,31 @@ class CompanyLinkServiceTest extends TestCase
         $this->assertSame(1, DB::table('statuses')->count());
     }
 
+    public function test_prune_removes_orphans_across_multiple_id_windows(): void
+    {
+        $this->createCompany('123456789', 'J40/1234/2024');
+
+        LegalRepresentative::create([
+            'registration' => 'J40/1234/2024',
+            'person_name' => 'LINKED PERSON',
+        ]);
+
+        foreach (range(1, 5) as $index) {
+            LegalRepresentative::create([
+                'registration' => 'J40/999'.$index.'/2024',
+                'person_name' => 'ORPHAN '.$index,
+            ]);
+        }
+
+        // The window is smaller than the number of orphans, so several keyset
+        // windows are needed; the linked row sits between them.
+        $pruned = (new CompanyLinkService(pruneChunk: 2))->pruneOrphans();
+
+        $this->assertSame(5, $pruned['legal_representatives']);
+        $this->assertSame(1, LegalRepresentative::count());
+        $this->assertDatabaseHas('legal_representatives', ['person_name' => 'LINKED PERSON']);
+    }
+
     public function test_the_job_links_and_accepts_pruning(): void
     {
         $company = $this->createCompany('123456789', 'J40/1234/2024');

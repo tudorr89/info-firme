@@ -101,6 +101,33 @@ class FullImportPipelineTest extends TestCase
         $this->assertDatabaseHas('caens', ['class' => 6201, 'version' => 2]);
     }
 
+    public function test_companies_without_an_euid_do_not_overwrite_each_other(): void
+    {
+        // The ONRC file has rows without an EUID (trailing-newline artifacts).
+        // Storing them as '' would make them collide on the unique index and
+        // the upsert would overwrite a different company.
+        $this->writeFile('imports/od_firme.csv', $this->companyHeader(), [
+            'NO EUID ONE SRL^11111111^J40/1001/2024^01/01/2024^^SRL^România^Bucureşti^București'
+            .'^Str. Unu^1^^^^^010001^1^^^',
+            'NO EUID TWO SRL^22222222^J40/1002/2024^01/01/2024^^SRL^România^Bucureşti^București'
+            .'^Str. Doi^2^^^^^010002^1^^^',
+        ]);
+
+        $this->artisan('import:companies', ['file' => Storage::disk('local')->path('imports/od_firme.csv')])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('companies', [
+            'reg_com' => 'J40/1001/2024',
+            'name' => 'NO EUID ONE SRL',
+            'euid' => null,
+        ]);
+        $this->assertDatabaseHas('companies', [
+            'reg_com' => 'J40/1002/2024',
+            'name' => 'NO EUID TWO SRL',
+            'euid' => null,
+        ]);
+    }
+
     public function test_the_link_backfill_repairs_legacy_rows_without_a_company_id(): void
     {
         Storage::disk('local')->delete('imports/od_firme.csv');

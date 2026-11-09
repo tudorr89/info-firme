@@ -26,7 +26,10 @@ class CompanyImportJob implements ShouldQueue, Silenced
 {
     use Dispatchable, Queueable;
 
-    public int $timeout = 1800;
+    // Kept below the queue `retry_after` (1900s) and Horizon's supervisor
+    // timeout (1800s) so a long-running import is never retried or killed
+    // while it is still writing chunks.
+    public int $timeout = 1700;
 
     public int $tries = 1;
 

@@ -87,6 +87,10 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
         $rows = [];
         $processedEuids = [];
 
+        // One read per batch instead of one per row: the list is cached, but a
+        // cache round trip per company still dominates a 25k-row batch.
+        $bannedCifs = array_flip(BannedCifService::all());
+
         foreach ($this->batchData as $dataLine) {
             $regCom = trim((string) ($dataLine[$this->fieldMap['COD_INMATRICULARE']] ?? ''));
             $euid = trim((string) ($dataLine[$this->fieldMap['EUID']] ?? ''));
@@ -98,21 +102,25 @@ class ProcessCompanyBatchImportJobUpsert implements ShouldQueue, Silenced
 
             // EUID is unique in the database: keep the first occurrence so the
             // upsert can never match a different company through that index.
+            // Rows without an EUID are stored as NULL: an empty string would
+            // collide on the unique index and overwrite another company.
             if ($euid !== '' && isset($processedEuids[$euid])) {
                 continue;
             }
 
-            if (BannedCifService::isBanned($cui)) {
+            if (isset($bannedCifs[$cui])) {
                 continue;
             }
 
-            $processedEuids[$euid] = true;
+            if ($euid !== '') {
+                $processedEuids[$euid] = true;
+            }
 
             $rows[$regCom] = [
                 'name' => $dataLine[$this->fieldMap['DENUMIRE']],
                 'cui' => $cui,
                 'reg_com' => $regCom,
-                'euid' => $euid,
+                'euid' => $euid === '' ? null : $euid,
                 'type' => $dataLine[$this->fieldMap['FORMA_JURIDICA']] ?? null,
                 'registration_date' => $this->parseDate($dataLine[$this->fieldMap['DATA_INMATRICULARE']] ?? null),
                 'website' => $dataLine[$this->fieldMap['WEB']] ?? null,

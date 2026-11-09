@@ -13,10 +13,16 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('onrc:download')->monthlyOn(15, '02:00');
-        $schedule->command('import:all')->monthlyOn(15, '03:00')->withoutOverlapping();
+        // `--force` refreshes every snapshot: the target filenames are fixed,
+        // so without it the scheduled download skips everything after the first
+        // run. The import is chained from the download batch's `then` callback.
+        $schedule->command('onrc:download --force --import')
+            ->monthlyOn(15, '02:00')
+            ->withoutOverlapping();
         $schedule->command('companies:link')->dailyAt('04:00')->withoutOverlapping();
-        $schedule->command('companies:link --prune')->monthlyOn(16, '04:00')->withoutOverlapping();
+        // Half an hour after `companies:link`: pruning re-checks the links, and
+        // the two must not fight over the same rows at the same minute.
+        $schedule->command('companies:link --prune')->monthlyOn(16, '04:30')->withoutOverlapping();
         $schedule->command('sitemap:generate')->monthlyOn(15, '05:00')->withoutOverlapping();
         $schedule->command('horizon:snapshot')->everyFiveMinutes();
     }

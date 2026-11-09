@@ -18,15 +18,19 @@ use Throwable;
  * Downloads a single ONRC CSV resource.
  *
  * ONRC file URLs can be very slow, so this job uses a long timeout (kept below
- * the queue `retry_after` of 1250s) and a long, escalating backoff instead of
- * failing fast. Each attempt streams to a `.part` file, so a retry restarts
- * from a clean slate.
+ * Horizon's supervisor timeout of 1800s and the queue `retry_after` of 1900s)
+ * and a long, escalating backoff instead of failing fast. Each attempt streams
+ * to a `.part` file, so a retry restarts from a clean slate.
+ *
+ * The HTTP timeout and retry budget must stay below the job timeout:
+ * `services.onrc.download_timeout` (1500s) x `services.onrc.download_retries`
+ * (1) is 1500s, leaving room for the retry backoff inside the 1700s timeout.
  */
 class OnrcDownloadJob implements ShouldQueue, Silenced
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 1200;
+    public int $timeout = 1700;
 
     public int $tries = 5;
 
