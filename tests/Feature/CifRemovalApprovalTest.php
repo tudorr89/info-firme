@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\CifRemovalStatus;
+use App\Filament\Resources\CifRemovalRequests\Pages\ListCifRemovalRequests;
 use App\Livewire\CompanySearch;
 use App\Models\Address;
 use App\Models\CaenCompany;
@@ -13,7 +14,9 @@ use App\Models\Status;
 use App\Models\User;
 use App\Services\BannedCifService;
 use App\Services\CifRemovalService;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\Hash;
+use Livewire\Livewire;
 use Tests\TestCase;
 use Tests\TruncatesCommittedDatabase;
 
@@ -195,6 +198,53 @@ class CifRemovalApprovalTest extends TestCase
         $this->actingAs($this->admin())
             ->get('/admin/cif-removal-requests')
             ->assertOk();
+    }
+
+    public function test_an_administrator_can_open_a_request(): void
+    {
+        $request = $this->request(self::CUI);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/cif-removal-requests/'.$request->id.'/edit')
+            ->assertOk()
+            ->assertSee(self::CUI);
+    }
+
+    public function test_the_approve_action_bans_the_cif_from_the_requests_table(): void
+    {
+        $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);
+        $request = $this->request(self::CUI);
+
+        $this->actingAs($this->admin());
+
+        Livewire::test(ListCifRemovalRequests::class)
+            ->callAction(
+                TestAction::make('approve')->table($request),
+                data: ['review_note' => 'Verificat.'],
+            )
+            ->assertNotified();
+
+        $this->assertSame(CifRemovalStatus::Approved, $request->fresh()->status);
+        $this->assertSame('Verificat.', $request->fresh()->review_note);
+        $this->assertSame(0, Company::query()->where('cui', self::CUI)->count());
+    }
+
+    public function test_the_reject_action_keeps_the_company(): void
+    {
+        $this->company('SOCIETATEA MEA S.R.L.', self::CUI, self::REG_COM);
+        $request = $this->request(self::CUI);
+
+        $this->actingAs($this->admin());
+
+        Livewire::test(ListCifRemovalRequests::class)
+            ->callAction(
+                TestAction::make('reject')->table($request),
+                data: ['review_note' => 'Nu se confirmă.'],
+            )
+            ->assertNotified();
+
+        $this->assertSame(CifRemovalStatus::Rejected, $request->fresh()->status);
+        $this->assertSame(1, Company::query()->where('cui', self::CUI)->count());
     }
 
     private function request(string $cui): CifRemovalRequest
