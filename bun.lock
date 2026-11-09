@@ -3,9 +3,6 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "dependencies": {
-        "livewire": "^0.6.1",
-      },
       "devDependencies": {
         "@tailwindcss/vite": "^4.1.18",
         "axios": "^1.6.4",
@@ -134,8 +131,6 @@
 
     "axios": ["axios@1.6.7", "", { "dependencies": { "follow-redirects": "^1.15.4", "form-data": "^4.0.0", "proxy-from-env": "^1.1.0" } }, "sha512-/hDJGff6/c7u0hDkvkGxR/oy6CbCs8ziCsC7SqmhjfozqiJGc8Z11wrv9z9lYfY4K8l+H9TpjcMDX0xOZmx+RA=="],
 
-    "bytes": ["bytes@1.0.0", "", {}, "sha512-/x68VkHLeTl3/Ll8IvxdwzhrT+IyKc52e/oyHhA2RwqPqswSnjVbSddfPRwAsJtbilMAPSRWwAlpxdYsSWOTKQ=="],
-
     "combined-stream": ["combined-stream@1.0.8", "", { "dependencies": { "delayed-stream": "~1.0.0" } }, "sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg=="],
 
     "delayed-stream": ["delayed-stream@1.0.0", "", {}, "sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ=="],
@@ -153,8 +148,6 @@
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
     "graceful-fs": ["graceful-fs@4.2.11", "", {}, "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="],
-
-    "highland": ["highland@1.26.3", "", {}, "sha512-leRVR8mSiOteYmq2GVKLd7+UvGMl28ye6dwJC0Mo1zBNk4xk8b8GrA76OhvyGwZAmzL+80ExdrvCAMtjRWApeQ=="],
 
     "jiti": ["jiti@2.7.0", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="],
 
@@ -184,8 +177,6 @@
 
     "lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.32.0", "", { "os": "win32", "cpu": "x64" }, "sha512-Amq9B/SoZYdDi1kFrojnoqPLxYhQ4Wo5XiL8EVJrVsB8ARoC1PWW6VGtT0WKCemjy8aC+louJnjS7U18x3b06Q=="],
 
-    "livewire": ["livewire@0.6.1", "", { "dependencies": { "highland": "~1.26.3", "qs": "~0.6.6", "raw-body": "~1.1.2" } }, "sha512-UYlqMNVJsVeCS71UNc8m68N5OTwYyc4zFTiFP2i0ZZVFut9KKZiu62nhyfD8QW4QzjwG46o6bWG4N8Qr8WT5Bg=="],
-
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
     "mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
@@ -202,15 +193,9 @@
 
     "proxy-from-env": ["proxy-from-env@1.1.0", "", {}, "sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg=="],
 
-    "qs": ["qs@0.6.6", "", {}, "sha512-kN+yNdAf29Jgp+AYHUmC7X4QdJPR8czuMWLNLc0aRxkQ7tB3vJQEONKKT9ou/rW7EbqVec11srC9q9BiVbcnHA=="],
-
-    "raw-body": ["raw-body@1.1.7", "", { "dependencies": { "bytes": "1", "string_decoder": "0.10" } }, "sha512-WmJJU2e9Y6M5UzTOkHaM7xJGAPQD8PNzx3bAd2+uhZAim6wDk6dAZxPVYLF67XhbR4hmKGh33Lpmh4XWrCH5Mg=="],
-
     "rollup": ["rollup@4.12.0", "", { "dependencies": { "@types/estree": "1.0.5" }, "optionalDependencies": { "@rollup/rollup-android-arm-eabi": "4.12.0", "@rollup/rollup-android-arm64": "4.12.0", "@rollup/rollup-darwin-arm64": "4.12.0", "@rollup/rollup-darwin-x64": "4.12.0", "@rollup/rollup-linux-arm-gnueabihf": "4.12.0", "@rollup/rollup-linux-arm64-gnu": "4.12.0", "@rollup/rollup-linux-arm64-musl": "4.12.0", "@rollup/rollup-linux-riscv64-gnu": "4.12.0", "@rollup/rollup-linux-x64-gnu": "4.12.0", "@rollup/rollup-linux-x64-musl": "4.12.0", "@rollup/rollup-win32-arm64-msvc": "4.12.0", "@rollup/rollup-win32-ia32-msvc": "4.12.0", "@rollup/rollup-win32-x64-msvc": "4.12.0", "fsevents": "~2.3.2" }, "bin": "dist/bin/rollup" }, "sha512-wz66wn4t1OHIJw3+XU7mJJQV/2NAfw5OAk6G6Hoo3zcvz/XOfQ52Vgi+AN4Uxoxi0KBBwk2g8zPrTDA4btSB/Q=="],
 
     "source-map-js": ["source-map-js@1.2.2", "", {}, "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw=="],
-
-    "string_decoder": ["string_decoder@0.10.31", "", {}, "sha512-ev2QzSzWPYmy9GuqfIVildA4OdcGLeFZQrq5ys6RtiuF+RQQiZWr8TZNyAcuVXyQRYfEO+MsoB/1BuQVhOJuoQ=="],
 
     "tailwindcss": ["tailwindcss@4.3.3", "", {}, "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="],
 

@@ -207,8 +207,9 @@ docker compose pull app && docker compose up -d app
 ```
 
 `build-app.sh` and `.env.production`/`.env.local` are gitignored (they travel
-with the rsync). The compose file **intentionally does not mount a runtime
-`.env`**: env is baked into the image, so env changes require a rebuild.
+with the rsync). The image contains no `.env`: the compose file injects the
+environment at runtime (`env_file:`), so a secret never lands in a registry
+layer and an env change needs a container restart, not a rebuild.
 
 ## Runtime facts
 

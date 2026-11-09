@@ -36,6 +36,28 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --with github.com/dunglas/caddy-cbrotli
 
 ###########################################
+# Frontend assets (Bun + Vite)
+#
+# Built in its own stage: Bun, node_modules and the build toolchain never reach
+# the final image, which only receives the compiled `public/build` directory.
+###########################################
+
+FROM oven/bun:${BUN_VERSION}-alpine AS assets
+
+WORKDIR /app
+
+# The manifest and lockfile are copied on their own first, so the (slow)
+# install layer is reused until the dependencies actually change.
+COPY package.json bun.lock ./
+
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
+
+COPY . .
+
+RUN bun run build
+
+###########################################
 
 FROM composer:${COMPOSER_VERSION} AS vendor
 
@@ -52,9 +74,7 @@ LABEL org.opencontainers.image.licenses=MIT
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG TZ=UTC
-ARG ENV_FILE=.env
 ARG APP_ENV=production
-ARG BUN_VERSION
 # Re-declared here: a global ARG is only visible in FROM lines otherwise.
 ARG SUPERCRONIC_VERSION
 ARG GIT_COMMIT_HASH=unknown
@@ -105,9 +125,6 @@ RUN --mount=type=cache,target=/var/cache/apk \
     unzip \
     vim \
     wget \
-    && rm -rf /tmp/* /var/tmp/*
-
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr bash -s "bun-v${BUN_VERSION}" \
     && rm -rf /tmp/* /var/tmp/*
 
 # Install PHP extensions (dunglas/frankenphp already ships the toolchain).
@@ -172,19 +189,7 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
     --no-scripts \
     --no-progress
 
-COPY --link --chown=${USER_ID}:${GROUP_ID} package.json bun.lock* ./
-
-# Keep Bun's tarball cache between builds (it is not part of the image).
-RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
-
 COPY --link --chown=${USER_ID}:${GROUP_ID} . .
-
-# Laravel prefers .env.{APP_ENV} over .env. Stale env files copied from the
-# build context used to shadow the selected ENV_FILE; keep .env as the single
-# baked environment file.
-RUN rm -f .env .env.local .env.production .env.staging .env.testing .env.preview
-COPY --link --chown=${USER_ID}:${GROUP_ID} ${ENV_FILE:-.env} .env
 
 RUN mkdir -p \
     storage/framework/sessions \
@@ -209,7 +214,9 @@ RUN composer dump-autoload \
 RUN php artisan view:cache \
     && php artisan filament:optimize
 
-RUN bun run build
+# Compiled by the `assets` stage; the app user needs to be able to rewrite the
+# manifest during a local build, hence the chown below.
+COPY --link --chown=${USER_ID}:${GROUP_ID} --from=assets /app/public/build ./public/build
 
 # Only what is written at runtime needs to be owned by the app user: storage/,
 # bootstrap/cache/, public/ (storage:link + Vite build output) and the XDG

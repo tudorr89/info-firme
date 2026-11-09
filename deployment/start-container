@@ -40,10 +40,6 @@ case "${container_mode}" in
         initialStuff
         echo "Octane server: ${OCTANE_SERVER:-frankenphp}"
 
-        if [ "$(php artisan tinker --execute="echo config('inertia.ssr.enabled');")" = "1" ]; then
-            echo "Inertia SSR server url: $(php artisan tinker --execute="echo config('inertia.ssr.url');")"
-        fi
-
         case "${OCTANE_SERVER:-frankenphp}" in
             frankenphp)
                 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.frankenphp.conf

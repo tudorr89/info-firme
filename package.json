@@ -1,10 +1,4 @@
 {
-    "private": true,
-    "type": "module",
-    "scripts": {
-        "dev": "vite",
-        "build": "vite build"
-    },
     "devDependencies": {
         "@tailwindcss/vite": "^4.1.18",
         "axios": "^1.6.4",
@@ -12,7 +6,10 @@
         "tailwindcss": "^4.1.18",
         "vite": "^5.0.0"
     },
-    "dependencies": {
-        "livewire": "^0.6.1"
-    }
+    "private": true,
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "type": "module"
 }

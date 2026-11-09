@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class WebUiTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_the_terms_page_lists_the_operator_company_data(): void
     {
         $this->get(route('legal.terms'))

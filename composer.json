@@ -17,7 +17,6 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "opcodesio/log-viewer": "^3.18",
-        "predis/predis": "^3.0",
         "sentry/sentry-laravel": "^4.13",
         "spatie/laravel-settings": "^3.3"
     },
@@ -26,11 +25,11 @@
         "larastan/larastan": "^3.0",
         "laravel/boost": "^2.0",
         "laravel/pint": "^1.0",
-        "laravel/sail": "^1.18",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpmd/phpmd": "^3.0",
         "phpunit/phpunit": "^13.0",
+        "predis/predis": "^3.0",
         "spatie/laravel-ignition": "^2.0"
     },
     "autoload": {
