@@ -14,9 +14,12 @@
     ],
     "sail": false,
     "skills": [
+        "infer-conventions",
         "laravel-best-practices",
+        "testing-best-practices",
         "configuring-horizon",
-        "pulse-development",
-        "tailwindcss-development"
+        "octane-development",
+        "tailwindcss-development",
+        "filament-development"
     ]
 }

@@ -1,77 +1,52 @@
-# Migration Best Practices
+# Migration best practices
 
-## Generate Migrations with Artisan
+## Generate migrations with Artisan
 
-Always use `php artisan make:migration` for consistent naming and timestamps.
+Use `php artisan make:migration` to generate the timestamped filename and migration structure.
 
-Incorrect (manually created file):
-```php
-// database/migrations/posts_migration.php  ← wrong naming, no timestamp
-```
-
-Correct (Artisan-generated):
 ```bash
 php artisan make:migration create_posts_table
 php artisan make:migration add_slug_to_posts_table
 ```
 
-## Use `constrained()` for Foreign Keys
+## Define foreign-key constraints deliberately
 
-Automatic naming and referential integrity.
+Use `constrained()` when its naming conventions and default actions match the relationship. Specify the table or delete behavior when they do not.
 
 ```php
 $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-
-// Non-standard names
 $table->foreignId('author_id')->constrained('users');
 ```
 
-## Never Modify Deployed Migrations
+Do not add a duplicate single-column index without checking the database driver's treatment of foreign-key indexes and the indexes already created by the migration.
 
-Once a migration has run in production, treat it as immutable. Create a new migration to change the table.
+## Treat deployed migrations as immutable
 
-Incorrect (editing a deployed migration):
+After a migration has run in a shared or production environment, create a new migration for later changes. Editing the old file makes fresh installations differ from upgraded installations.
+
+For a local migration that has not been shared or deployed, editing and rerunning it may be simpler.
+
+## Design indexes for real queries
+
+Add indexes based on query patterns, selectivity, write cost, and the database's ability to use composite indexes. A column that appears in `WHERE`, `ORDER BY`, or `JOIN` does not automatically need its own index.
+
+Declare each selected index in the schema migration that creates or changes the relevant table. Confirm important indexes with representative data and the database's query plan. Avoid redundant indexes whose leading columns duplicate an existing index without serving a distinct query. See the database performance and advanced query rules for index selection and column-order guidance.
+
+## Stage changes that affect existing rows
+
+Adding a required or unique column to a populated table often needs multiple deployment-safe steps. Add a nullable column, deploy code that can handle both states, backfill existing rows in bounded chunks, then add the required constraint or index after the data is valid.
+
+Do not assume this migration is safe on a populated table:
+
 ```php
-// 2024_01_01_create_posts_table.php — already in production
-$table->string('slug')->unique(); // ← added after deployment
+$table->string('slug')->unique();
 ```
 
-Correct (new migration to alter):
-```php
-// 2024_03_15_add_slug_to_posts_table.php
-Schema::table('posts', function (Blueprint $table) {
-    $table->string('slug')->unique()->after('title');
-});
-```
+Large backfills usually work better as an observable, restartable command or job than inside a schema migration. Small deterministic data changes may be reasonable in a migration when you understand their locking, transaction, and deployment behavior.
 
-## Add Indexes in the Migration
+## Mirror defaults only when unsaved models need them
 
-Add indexes when creating the table, not as an afterthought. Columns used in `WHERE`, `ORDER BY`, and `JOIN` clauses need indexes.
-
-Incorrect:
-```php
-Schema::create('orders', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('user_id')->constrained();
-    $table->string('status');
-    $table->timestamps();
-});
-```
-
-Correct:
-```php
-Schema::create('orders', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('user_id')->constrained()->index();
-    $table->string('status')->index();
-    $table->timestamp('shipped_at')->nullable()->index();
-    $table->timestamps();
-});
-```
-
-## Mirror Defaults in Model `$attributes`
-
-When a column has a database default, mirror it in the model so new instances have correct values before saving.
+The database applies a default when it inserts a row, not when you instantiate a model. Mirror the value in the model's `$attributes` only when application code must observe that default before persistence, and keep both definitions in sync.
 
 ```php
 // Migration
@@ -83,39 +58,10 @@ protected $attributes = [
 ];
 ```
 
-## Write Reversible `down()` Methods by Default
+## Make rollbacks honest
 
-Implement `down()` for schema changes that can be safely reversed so `migrate:rollback` works in CI and failed deployments.
+Implement `down()` when you can safely reverse the change. A rollback that drops populated columns or cannot restore transformed data is destructive even if it is syntactically reversible. Document that limitation and prefer a forward-fix migration in production.
 
-```php
-public function down(): void
-{
-    Schema::table('posts', function (Blueprint $table) {
-        $table->dropColumn('slug');
-    });
-}
-```
+## Keep migrations focused
 
-For intentionally irreversible migrations (e.g., destructive data backfills), leave a clear comment and require a forward fix migration instead of pretending rollback is supported.
-
-## Keep Migrations Focused
-
-One concern per migration. Never mix DDL (schema changes) and DML (data manipulation).
-
-Incorrect (partial failure creates unrecoverable state):
-```php
-public function up(): void
-{
-    Schema::create('settings', function (Blueprint $table) { ... });
-    DB::table('settings')->insert(['key' => 'version', 'value' => '1.0']);
-}
-```
-
-Correct (separate migrations):
-```php
-// Migration 1: create_settings_table
-Schema::create('settings', function (Blueprint $table) { ... });
-
-// Migration 2: seed_default_settings
-DB::table('settings')->insert(['key' => 'version', 'value' => '1.0']);
-```
+Keep each migration small enough to reason about, deploy, and reverse. Separate long-running backfills from schema changes when the split reduces locks and supports phased deployment. Do not split related operations only to enforce a blanket separation between data definition and data manipulation.
