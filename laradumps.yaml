@@ -1,0 +1,20 @@
+app:
+    dispatcher: curl
+    primary_host: info-firme.test
+    secondary_host: host.docker.internal
+    port: 9191
+    workdir: /var/www/html/
+    project_path: /Users/tudorrusu/Projects/info-firme/
+    wsl_config: wsl+Ubuntu/
+config:
+    sleep: 0
+    macos_auto_launch: false
+observers:
+    auto_invoke_app: false
+    enabled_in_testing: false
+xdebug:
+    client_host: 0.0.0.0
+    client_port: 9003
+code_snippet:
+    above: 9
+    below: 3

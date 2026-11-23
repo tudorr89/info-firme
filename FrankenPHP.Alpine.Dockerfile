@@ -1,13 +1,12 @@
 # syntax=docker/dockerfile:1
 #
-# Build order matters: everything below is ordered from "changes almost never"
-# to "changes on every commit" so BuildKit can reuse expensive layers (PHP
-# extensions, composer install, frontend build) between deploys.
-
-# Pinned to PHP 8.4.27 (Laravel 13 needs the Pdo\Mysql class; also fixes
-# CVE-2026-109618 / CVE-2026-109619).
-ARG PHP_VERSION=8.4.27
-ARG FRANKENPHP_VERSION=1.13.2
+# PHP 8.4.28 ships the 2026-11-19 security release (critical). FrankenPHP
+# 1.13.4 fixes GHSA-5f4m-ff4w-g458 (one unauthenticated request crashes the
+# worker-mode process, affects 1.13.2/1.13.3), 1.13.5 adds 17 security fixes
+# and 1.13.6 fixes intermittent stream_select() failures and a worker-restart
+# crash. Keep the patch level pinned and asserted below.
+ARG PHP_VERSION=8.4.28
+ARG FRANKENPHP_VERSION=1.13.6
 ARG COMPOSER_VERSION=2.9
 ARG BUN_VERSION=1.4.2
 ARG SUPERCRONIC_VERSION=0.2.49
