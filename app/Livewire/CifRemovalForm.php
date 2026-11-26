@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Jobs\SendCifRemovalRequestReceivedEmail;
 use App\Models\CifRemovalRequest;
 use App\Models\Company;
 use App\Services\BannedCifService;
@@ -10,6 +11,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Throwable;
 
 #[Layout('layouts.app')]
 class CifRemovalForm extends Component
@@ -125,6 +127,16 @@ class CifRemovalForm extends Component
         ]);
 
         $this->notifyOperator($request);
+
+        // Queued, so the visitor gets the confirmation page immediately and a
+        // mail failure cannot lose the request that was just stored.
+        try {
+            SendCifRemovalRequestReceivedEmail::dispatch($request);
+        } catch (Throwable $exception) {
+            // A queue outage is not the visitor's problem: the request is
+            // stored, the operator was notified, and Sentry gets the rest.
+            report($exception);
+        }
 
         $this->submitted = true;
         $this->reset('cui', 'requesterName', 'requesterEmail', 'reason', 'declaration');
