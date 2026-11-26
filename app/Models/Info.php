@@ -10,7 +10,7 @@ class Info extends Model
 {
     use HasFactory;
 
-    protected $guarded= [];
+    protected $guarded = [];
 
     protected $hidden = [
         'id',

@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Jobs\CompanyImportJob;
+use Illuminate\Console\Command;
 
 class CompanyImportCommand extends Command
 {

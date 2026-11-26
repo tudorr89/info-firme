@@ -152,12 +152,16 @@ This application uses Laravel Octane, a long-running PHP server. The application
 
 When working on Octane-specific features (concurrency, shared tables, memory, driver configuration, testing), invoke `octane-development` for detailed rules.
 
-=== pint/core rules ===
+=== pun/core rules ===
 
-# Laravel Pint Code Formatter
+# Pun (format + lint + analyse)
 
-- If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
-- Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
+Pun replaces Pint, Larastan and PHPMD in this project; its config is `pun.toml`.
+
+- If you have modified any PHP file, run `vendor/bin/pun format` (or `composer format`) before finalizing changes. Use `pun format --dirty` to touch only the files you changed.
+- Do not run `pun format --test` as a fix step, and never run `pun check --fix` blindly: `pun format`/`pun lint --fix` are the fix commands.
+- The quality gate is `composer lint` (= `pun check`: format, lint and analysis in one pass, ~1s).
+- Analysis findings never get blanket-muted. A false positive goes into `[[analyse.ignore]]` in `pun.toml` with the rule, a message regex and the narrowest path list, plus a comment saying why it is a false positive.
 
 === phpunit/core rules ===
 
@@ -213,7 +217,7 @@ layer and an env change needs a container restart, not a rebuild.
 
 ## Runtime facts
 
-- Laravel 13.40, Filament 5.11, Livewire 4.4, PHP 8.4.27, PHPUnit 13, Larastan 3, PHPMD 3.
+- Laravel 13.40, Filament 5.11, Livewire 4.4, PHP 8.4.28 (the security release from 2026-11-19; the Dockerfile asserts it), PHPUnit 13, Pun 0.4 (format + lint + analyse, replaces Pint/Larastan/PHPMD).
 - Filament v5 upgraded 2026-11; `public/js|css|fonts/filament` are git-tracked, so
   republish them with `php artisan filament:assets` on every Filament bump.
 - Legacy Laravel-10-style bootstrap (`App\Http\Kernel`): the framework `/up`
@@ -235,5 +239,7 @@ layer and an env change needs a container restart, not a rebuild.
 
 ```bash
 php artisan test     # full feature suite
-composer lint        # Larastan level 5 + PHPMD 3 (rulesets.xml)
+composer lint        # pun check: format + lint + analyse (pun.toml)
+composer format      # pun format: apply formatting fixes
+composer analyse     # pun analyse: analysis only
 ```

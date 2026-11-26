@@ -1,0 +1,78 @@
+# Written by `pun migrate`: no pint.json or .php-cs-fixer.php found; starter config.
+[extensions]
+laravel = "on"
+phpunit = "on"
+carbon = "on"
+mockery = "on"
+
+[format]
+preset = "laravel"
+
+[lint.rules]
+"refactor/rename-phpdoc-tag" = "error"
+"functions/no-unused-closure-use" = "error"
+"style/no-alias-function" = "error"
+"statements/no-empty" = "error"
+"phpdoc/no-superfluous-tags" = { allow-mixed = true, allow-unused-params = true }
+"functions/no-unreachable-default-argument-value" = "error"
+"imports/no-unused" = "error"
+"control-flow/no-useless-return" = "error"
+"style/require-ordered-traits" = "error"
+"phpunit/require-method-casing" = { case = "snake-case" }
+"phpunit/require-protected-setup" = "error"
+"phpdoc/no-access" = "error"
+"phpdoc/no-package" = "error"
+"phpdoc/no-useless-inheritdoc" = "error"
+"classes/prefer-self-in-final" = "error"
+"complexity/no-redundant-nullsafe" = "off"
+"dead-code/no-duplicate-array-key" = "off"
+"dead-code/no-unreachable-code" = "off"
+"dead-code/no-unused-constructor-param" = "off"
+"dead-code/no-unused-expression" = "off"
+"dead-code/no-unused-private-constant" = "off"
+"dead-code/no-unused-private-method" = "off"
+"laravel/no-useless-value-call" = "off"
+"laravel/no-useless-with-call" = "off"
+
+[[lint.overrides]]
+files = ["app", "config", "database/factories", "database/seeders", "routes", "tests"]
+rules = { "complexity/no-redundant-nullsafe" = "error", "dead-code/no-duplicate-array-key" = "error", "dead-code/no-unreachable-code" = "error", "dead-code/no-unused-constructor-param" = "error", "dead-code/no-unused-expression" = "error", "dead-code/no-unused-private-constant" = "error", "dead-code/no-unused-private-method" = "error", "laravel/no-useless-value-call" = "error", "laravel/no-useless-with-call" = "error" }
+
+[[lint.overrides]]
+files = ["bootstrap/cache/*", "storage/*"]
+rules = { "complexity/no-redundant-nullsafe" = "off", "dead-code/no-duplicate-array-key" = "off", "dead-code/no-unreachable-code" = "off", "dead-code/no-unused-constructor-param" = "off", "dead-code/no-unused-expression" = "off", "dead-code/no-unused-private-constant" = "off", "dead-code/no-unused-private-method" = "off", "laravel/no-useless-value-call" = "off", "laravel/no-useless-with-call" = "off" }
+
+[analyse]
+preset = "phpstan/level_5"
+paths = ["app", "config", "database/factories", "database/seeders", "routes", "tests"]
+exclude = ["bootstrap/cache/*", "storage/*"]
+
+[analyse.rules]
+"laravel/redundant-collection-call" = { parse-model-casts-method = true }
+"laravel/undefined-model-append" = { parse-model-casts-method = true }
+
+# ---------------------------------------------------------------------------
+# Analysis ignores: each one is a proof-of-false-positive, not a blanket mute.
+# ---------------------------------------------------------------------------
+
+# Livewire registers `layoutData` as a macro on Illuminate\View\View at runtime
+# (SupportPageComponents). Puppeteers of static analysis cannot see macros;
+# Larastan resolves them through its Laravel extension, Pun does not yet.
+[[analyse.ignore]]
+rule = "undefined/method"
+message = "#layoutData#"
+paths = ["app/Livewire/CifRemovalForm.php", "app/Livewire/CompanySearch.php"]
+
+# `$throttled` is a `public bool` with a `false` default that flips to true on
+# the 61st search. Reached through Livewire's Testable proxy, Pun narrows the
+# declared default to the literal `false` and reports the assertion as dead.
+[[analyse.ignore]]
+rule = "dead-code/impossible-method-type-check"
+message = "#always evaluate to false#"
+paths = ["tests/Feature/CompanySearchTest.php"]
+
+# Pun's analyse uses the Laravel stubs that ship inside larastan: with the
+# package installed it resolves facade fakes (Queue::assertPushed on QueueFake),
+# model magic properties and macros, and reports the same as Larastan did. Do
+# not drop larastan/larastan from require-dev while pun is the analyser, even
+# though `pun analyse` is what runs.

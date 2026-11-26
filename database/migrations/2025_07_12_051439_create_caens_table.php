@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('caens', function (Blueprint $table) {
-            //SECTIUNEA^SUBSECTIUNEA^DIVIZIUNEA^GRUPA^CLASA^DENUMIRE^VERSIUNE_CAEN
+            // SECTIUNEA^SUBSECTIUNEA^DIVIZIUNEA^GRUPA^CLASA^DENUMIRE^VERSIUNE_CAEN
             $table->id();
             $table->string('section')->nullable();
             $table->string('subsection')->nullable();

@@ -20,6 +20,7 @@ class Nomenclator extends Model
         'updated_at',
         'id',
     ];
+
     public function status(): HasOne
     {
         return $this->hasOne(Status::class);

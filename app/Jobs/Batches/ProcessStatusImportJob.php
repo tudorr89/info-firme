@@ -26,11 +26,11 @@ class ProcessStatusImportJob implements ShouldQueue, Silenced
     {
         Status::firstOrCreate(
             [
-                'registration'      => $this->dataLine[$this->fieldMap['COD_INMATRICULARE']],
+                'registration' => $this->dataLine[$this->fieldMap['COD_INMATRICULARE']],
             ],
             [
-                'registration'      => $this->dataLine[$this->fieldMap['COD_INMATRICULARE']],
-                'status'            => $this->dataLine[$this->fieldMap['COD']],
+                'registration' => $this->dataLine[$this->fieldMap['COD_INMATRICULARE']],
+                'status' => $this->dataLine[$this->fieldMap['COD']],
             ]
         );
     }
