@@ -2,7 +2,7 @@
 #
 # Build order matters: everything below is ordered from "changes almost never"
 # to "changes on every commit" so BuildKit can reuse expensive layers (PHP
-# extensions, composer install, frontend build) between deploys.
+# extensions, pun install, frontend build) between deploys.
 #
 # PHP 8.4.28 ships the 2026-11-19 security release (critical). FrankenPHP
 # 1.13.4 fixes GHSA-5f4m-ff4w-g458 (one unauthenticated request crashes the
@@ -13,6 +13,8 @@ ARG PHP_VERSION=8.4.28
 ARG FRANKENPHP_VERSION=1.13.6
 ARG CADDY_VERSION=2.11.9
 ARG COMPOSER_VERSION=2.9
+# Keep in sync with the shipfastlabs/pun constraint in composer.json.
+ARG PUN_VERSION=0.4.4
 ARG BUN_VERSION=1.4.2
 ARG SUPERCRONIC_VERSION=0.2.49
 
@@ -66,7 +68,19 @@ RUN bun run build
 
 ###########################################
 
-FROM composer:${COMPOSER_VERSION} AS vendor
+# Composer is used only as a bootstrap for Pun: it installs the
+# `shipfastlabs/pun` package once and the package's shim downloads the verified
+# native binary. Only the binary is copied into the image; Composer itself is
+# not shipped and does not install the application's dependencies.
+FROM composer:${COMPOSER_VERSION} AS pun
+
+ARG PUN_VERSION
+
+RUN composer require --no-interaction --no-progress --no-scripts --ignore-platform-reqs \
+        "shipfastlabs/pun:${PUN_VERSION}" \
+    && vendor/bin/pun --version \
+    && install -m 0755 vendor/bin/pun-* /usr/local/bin/pun \
+    && rm -rf /root/.composer/cache
 
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}-alpine
 
@@ -174,7 +188,7 @@ RUN { find / -xdev \( -perm -4000 -o -perm -2000 \) -type f -exec chmod a-s {} +
 
 RUN cp ${PHP_INI_DIR}/php.ini-production ${PHP_INI_DIR}/php.ini
 
-COPY --link --from=vendor /usr/bin/composer /usr/bin/composer
+COPY --link --from=pun /usr/local/bin/pun /usr/local/bin/pun
 COPY --link deployment/supervisord.conf /etc/
 COPY --link deployment/octane/FrankenPHP/supervisord.frankenphp.conf /etc/supervisor/conf.d/
 COPY --link deployment/supervisord.*.conf /etc/supervisor/conf.d/
@@ -184,17 +198,17 @@ COPY --link deployment/php.ini ${PHP_INI_DIR}/conf.d/99-php.ini
 # FrankenPHP's embedded PHP reads this one.
 COPY --link deployment/php.ini /lib/php.ini
 
-COPY --link --chown=${USER_ID}:${GROUP_ID} composer.* ./
+COPY --link --chown=${USER_ID}:${GROUP_ID} composer.json composer.lock ./
 
-# Composer tarballs live in a BuildKit cache, not in the image, so a lockfile
-# change only re-downloads what actually changed.
-RUN --mount=type=cache,target=/tmp/composer-cache \
-    COMPOSER_CACHE_DIR=/tmp/composer-cache composer install \
+# Pun restores the locked versions into vendor/. Its package cache lives in a
+# BuildKit cache, not in the image, so a lockfile change only re-downloads what
+# actually changed. Autoload and scripts wait until the application code is
+# copied below.
+RUN --mount=type=cache,target=/tmp/pun-cache \
+    PUN_CACHE_DIR=/tmp/pun-cache pun install \
     --no-dev \
-    --no-interaction \
     --no-autoloader \
-    --no-scripts \
-    --no-progress
+    --no-scripts
 
 COPY --link --chown=${USER_ID}:${GROUP_ID} . .
 
@@ -209,12 +223,11 @@ RUN mkdir -p \
     && chmod +x /usr/local/bin/start-container /usr/local/bin/healthcheck \
     && rm -f bootstrap/cache/*.php
 
-# One autoload dump instead of a second full composer install; the dump runs
-# the post-autoload-dump hooks (package discovery, Filament assets).
-RUN composer dump-autoload \
+# One autoload dump instead of a second full install; the dump runs the
+# post-autoload-dump hooks (package discovery, Filament assets).
+RUN pun composer dump-autoload \
     --optimize \
-    --no-dev \
-    && composer clear-cache
+    --no-dev
 
 # Compile views and Filament components at build time as a smoke test; the
 # entrypoint clears and rebuilds them at runtime so injected env vars win.
@@ -237,7 +250,7 @@ RUN mkdir -p ${ROOT}/.config ${ROOT}/.data \
 # passes a new GIT_COMMIT_HASH/GIT_COMMIT_DATE on every deploy, and BuildKit keys
 # every instruction after a declared ARG on that value even when the instruction
 # does not reference it: declared at the top of this stage (where it used to be)
-# it changed the first layer, so apk, install-php-extensions, composer install,
+# it changed the first layer, so apk, install-php-extensions, pun install,
 # bun install and the asset build all re-ran on every single deploy.
 ARG GIT_COMMIT_HASH=unknown
 ARG GIT_COMMIT_DATE=unknown
