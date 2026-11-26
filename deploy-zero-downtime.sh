@@ -67,7 +67,10 @@ preflight() {
     docker info > /dev/null 2>&1 || die "the docker daemon is not reachable"
     [ -f "$COMPOSE_FILE" ] || die "compose file not found: $COMPOSE_FILE"
     [ -f "$ENV_FILE" ] || die "env file not found: $ENV_FILE (rendered by the infra playbook)"
-    [ -f deployment/Caddyfile.lb ] || die "missing deployment/Caddyfile.lb (the LB has no config)"
+    # Repo layout keeps it in deployment/; on the host the role renders it next
+    # to the compose file. Accept either, so the same script runs in both places.
+    [ -f Caddyfile.lb ] || [ -f deployment/Caddyfile.lb ] \
+        || die "missing Caddyfile.lb (the LB has no config)"
     docker compose version > /dev/null 2>&1 || die "docker compose v2 is required"
 }
 
