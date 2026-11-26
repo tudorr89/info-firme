@@ -45,7 +45,11 @@ class GenerateSitemap extends Command
 
         $this->writePages($directory);
 
-        $totalCompanies = Company::presentable()->count();
+        $totalCompanies = Company::presentable()
+            ->whereNotNull('cui')
+            ->whereNotIn('cui', ['', '0'])
+            ->distinct()
+            ->count('cui');
         $this->info("Writing {$totalCompanies} company URLs to sitemap chunks...");
 
         $chunks = $this->writeCompanyChunks($directory, $chunkSize);
@@ -86,48 +90,76 @@ class GenerateSitemap extends Command
     }
 
     /**
-     * Keyset pagination (`chunkById`) instead of OFFSET: with four million rows
-     * an OFFSET scan walks every skipped row, which turns the generation into
-     * dozens of full table scans.
+     * One URL per CUI, streamed with keyset pagination over the `cui` index.
+     *
+     * The company route is `/companie/{cui}`, i.e. the CUI *is* the URL key, so
+     * walking rows emits the same <loc> again whenever several rows share a CUI
+     * (116 954 CUIs in the current data). 84 914 rows also carry cui = "0", all
+     * of them collapsing onto /companie/0. GROUP BY + MAX() fixes both: one URL
+     * per real CUI, and a per-company lastmod instead of one global date.
+     * Ordering/keyset on the indexed `cui` column keeps this to a single index
+     * walk, where an OFFSET scan would walk every skipped row.
      */
     private function writeCompanyChunks(string $directory, int $chunkSize): int
     {
         $chunks = 0;
+        $lastCui = null;
 
-        Company::presentable()
-            ->select('id', 'cui', 'updated_at')
-            ->chunkById($chunkSize, function ($companies) use ($directory, &$chunks): void {
-                $xml = $this->openUrlset();
-                $written = 0;
+        while (true) {
+            $companies = Company::presentable()
+                ->selectRaw('cui, MAX(updated_at) as updated_at')
+                ->whereNotNull('cui')
+                // The company route only accepts digits: "0" and "" are import
+                // artefacts, not companies, and both used to reach the sitemap.
+                ->whereNotIn('cui', ['', '0'])
+                ->when($lastCui !== null, fn ($query) => $query->where('cui', '>', $lastCui))
+                ->groupBy('cui')
+                ->orderBy('cui')
+                ->limit($chunkSize)
+                ->get();
 
-                foreach ($companies as $company) {
-                    // The company route only accepts digits, and a handful of
-                    // imported rows have an empty CUI.
-                    if (preg_match('/^[0-9]+$/', (string) $company->cui) !== 1) {
-                        continue;
-                    }
+            if ($companies->isEmpty()) {
+                break;
+            }
 
-                    $xml .= $this->urlEntry(
-                        route('company.show', $company->cui),
-                        $company->updated_at?->format('Y-m-d') ?? now()->format('Y-m-d'),
-                        '0.8',
-                    );
+            $xml = $this->openUrlset();
+            $written = 0;
 
-                    $written++;
+            foreach ($companies as $company) {
+                $cui = (string) $company->cui;
+
+                if (preg_match('/^[0-9]+$/', $cui) !== 1) {
+                    continue;
                 }
 
-                $xml .= '</urlset>';
+                $xml .= $this->urlEntry(
+                    route('company.show', $cui),
+                    // MAX(updated_at) arrives as a raw datetime string.
+                    $company->updated_at
+                        ? substr((string) $company->updated_at, 0, 10)
+                        : now()->format('Y-m-d'),
+                    '0.8',
+                );
 
-                if ($written === 0) {
-                    return;
-                }
+                $written++;
+            }
 
+            $xml .= '</urlset>';
+
+            if ($written > 0) {
                 $chunks++;
 
                 $this->writeGzipped($directory."/sitemap-{$chunks}.xml.gz", $xml);
 
                 $this->info("Generated sitemap-{$chunks}.xml.gz ({$written} URLs)");
-            });
+            }
+
+            $lastCui = (string) $companies->last()->cui;
+
+            if ($companies->count() < $chunkSize) {
+                break;
+            }
+        }
 
         return $chunks;
     }
