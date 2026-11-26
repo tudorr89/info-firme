@@ -1,0 +1,147 @@
+# Zero-downtime topology: two app replicas behind a Caddy load balancer, with
+# Horizon and the scheduler split into their own single-instance services.
+#
+# Why the split: the single-container layout used to run HTTP + Horizon +
+# scheduler together (WITH_HORIZON/WITH_SCHEDULER=true). Two replicas of that
+# would run two schedulers and two Horizon masters, i.e. duplicated scheduled
+# jobs and duplicate queue consumers. Only the HTTP containers are replicated.
+#
+# Deploy with ./deploy-zero-downtime.sh (rolling, health-gated, with rollback);
+# `docker compose up -d` alone recreates both replicas at once and defeats the
+# point.
+#
+# Production deploys this from /home/tudor/docker via the info_firme Ansible
+# role (infra repo), not from this file - keep the two in sync.
+
+services:
+  # Front door. The cloudflared tunnel points here, so only this service
+  # publishes a host port; the replicas are reachable by name on the compose
+  # network only.
+  caddy-lb:
+    image: caddy:2-alpine
+    container_name: caddy-lb
+    restart: always
+    ports:
+      - "8000:80"
+    volumes:
+      - ./deployment/Caddyfile.lb:/etc/caddy/Caddyfile:ro
+    environment:
+      - TZ=Europe/Bucharest
+    depends_on:
+      app-1:
+        condition: service_healthy
+      app-2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # HTTP replicas. Migrations are NOT run at boot here: the deploy script runs
+  # them once, in a throwaway container, before either replica is replaced.
+  app-1:
+    image: registry.artemis.casa/info-firme:production
+    container_name: app-1
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - CONTAINER_MODE=http
+      - WITH_HORIZON=false
+      - WITH_SCHEDULER=false
+      - RUNNING_MIGRATIONS_AND_SEEDERS=false
+      - TZ=Europe/Bucharest
+    volumes:
+      - ./data/app:/var/www/html/storage/app
+      - ./data/logs:/var/www/html/logs
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      # optimize:clear + optimize + Octane boot before /up answers.
+      start_period: 90s
+    stop_grace_period: 30s
+
+  app-2:
+    image: registry.artemis.casa/info-firme:production
+    container_name: app-2
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - CONTAINER_MODE=http
+      - WITH_HORIZON=false
+      - WITH_SCHEDULER=false
+      - RUNNING_MIGRATIONS_AND_SEEDERS=false
+      - TZ=Europe/Bucharest
+    volumes:
+      - ./data/app:/var/www/html/storage/app
+      - ./data/logs:/var/www/html/logs
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    stop_grace_period: 30s
+
+  horizon:
+    image: registry.artemis.casa/info-firme:production
+    container_name: horizon
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - CONTAINER_MODE=horizon
+      - WITH_HORIZON=true
+      - WITH_SCHEDULER=false
+      - RUNNING_MIGRATIONS_AND_SEEDERS=false
+      - TZ=Europe/Bucharest
+    volumes:
+      - ./data/app:/var/www/html/storage/app
+      - ./data/logs:/var/www/html/logs
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 60s
+
+  # Single instance on purpose: the sitemap:generate command writes into the
+  # bind-mounted storage/app, so this container shares the same volume as the
+  # replicas.
+  scheduler:
+    image: registry.artemis.casa/info-firme:production
+    container_name: scheduler
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - CONTAINER_MODE=scheduler
+      - WITH_HORIZON=false
+      - WITH_SCHEDULER=true
+      - RUNNING_MIGRATIONS_AND_SEEDERS=false
+      - TZ=Europe/Bucharest
+    volumes:
+      - ./data/app:/var/www/html/storage/app
+      - ./data/logs:/var/www/html/logs
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning
+    environment:
+      - TZ=Europe/Bucharest
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

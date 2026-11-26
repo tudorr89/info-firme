@@ -1,5 +1,7 @@
 # Caddy Load Balancer Configuration
-# This Caddy instance serves as a load balancer for zero-downtime deployments
+# This Caddy instance serves as the front of a zero-downtime deployment: it
+# sits between the cloudflared tunnel and the app replicas, so a rolling
+# recreate of app-1/app-2 never returns an error to a visitor.
 
 {
 	admin off
@@ -16,39 +18,52 @@
 	}
 }
 
-# Load balance between api-1 and api-2
+# Load balance between the app replicas
 :80 {
 	log {
 		level WARN
 	}
 
-	# Health check endpoint
+	# Health check endpoint for the LB itself (the compose healthcheck probes
+	# this, not an app replica, so a half-deployed stack is never reported
+	# healthy).
 	@health path /health
 	handle @health {
 		respond "OK" 200
 	}
 
-	# Reverse proxy to API instances with load balancing
-	reverse_proxy api-1:8000 api-2:8000 {
-          # Use least connection policy
-          lb_policy least_conn
+	# Reverse proxy to the app replicas with load balancing
+	reverse_proxy app-1:8000 app-2:8000 {
+		# Use least connection policy
+		lb_policy least_conn
 
-          # ADD THESE LINES FOR ACTIVE HEALTH CHECKS:
-          health_uri /api/v1/health/deep
-          health_interval 2s
-          health_timeout 3s
-          health_status 2xx
+		# Transparent failover: if the chosen upstream is unreachable (e.g.
+		# mid-swap during a deploy, while a replica is restarting), retry on the
+		# healthy upstream instead of returning 502/500. This is what makes the
+		# deploy swap window invisible to clients.
+		lb_try_duration 5s
+		lb_try_interval 250ms
 
-          # Mark unhealthy after 1 failed check (instant failover)
-          fail_duration 10s
-          max_fails 1
-          unhealthy_status 5xx
-          unhealthy_latency 5s
+		# Active health checks against the app's own /up route (routes/web.php).
+		# It is deliberately cheap: it does not boot Laravel or touch the DB.
+		health_uri /up
+		health_interval 2s
+		health_timeout 3s
+		health_status 2xx
 
-          # Preserve original headers for backend logging
-          header_up X-Forwarded-Host {http.request.host}
-          header_up X-Forwarded-Port {http.request.port}
-          header_up X-Forwarded-Proto {http.request.proto}
-          header_up X-Forwarded-For {http.request.client_ip}
-      }
+		# Mark unhealthy after 1 failed check (instant failover)
+		fail_duration 10s
+		max_fails 1
+		unhealthy_status 5xx
+		unhealthy_latency 5s
+
+		# Preserve original headers for backend logging. The scheme is taken from
+		# the tunnel (cloudflared sets X-Forwarded-Proto: https); do not overwrite
+		# it with the LB's own http scheme, or Laravel/Twig would generate http
+		# URLs for requests it sees.
+		header_up X-Forwarded-Host {http.request.host}
+		header_up X-Forwarded-Port {http.request.port}
+		header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		header_up X-Forwarded-For {http.request.client_ip}
+	}
 }

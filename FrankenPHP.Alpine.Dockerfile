@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 #
+# Build order matters: everything below is ordered from "changes almost never"
+# to "changes on every commit" so BuildKit can reuse expensive layers (PHP
+# extensions, composer install, frontend build) between deploys.
+#
 # PHP 8.4.28 ships the 2026-11-19 security release (critical). FrankenPHP
 # 1.13.4 fixes GHSA-5f4m-ff4w-g458 (one unauthenticated request crashes the
 # worker-mode process, affects 1.13.2/1.13.3), 1.13.5 adds 17 security fixes
@@ -7,6 +11,7 @@
 # crash. Keep the patch level pinned and asserted below.
 ARG PHP_VERSION=8.4.28
 ARG FRANKENPHP_VERSION=1.13.6
+ARG CADDY_VERSION=2.11.9
 ARG COMPOSER_VERSION=2.9
 ARG BUN_VERSION=1.4.2
 ARG SUPERCRONIC_VERSION=0.2.49
@@ -15,9 +20,12 @@ ARG SUPERCRONIC_VERSION=0.2.49
 # Rebuild FrankenPHP with brotli support and a smaller binary
 ###########################################
 
+# A separate stage is required: `COPY --from` does not expand ARG variables.
+FROM caddy:${CADDY_VERSION}-builder-alpine AS caddy-builder
+
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php${PHP_VERSION}-alpine AS upstream
 
-COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
+COPY --from=caddy-builder /usr/bin/xcaddy /usr/bin/xcaddy
 
 # Persistent Go caches: a version bump recompiles FrankenPHP in ~1min instead
 # of re-downloading the whole module graph and rebuilding Caddy from scratch.
@@ -76,12 +84,8 @@ ARG TZ=UTC
 ARG APP_ENV=production
 # Re-declared here: a global ARG is only visible in FROM lines otherwise.
 ARG SUPERCRONIC_VERSION
-ARG GIT_COMMIT_HASH=unknown
-ARG GIT_COMMIT_DATE=unknown
 
 ENV TERM=xterm-color \
-    GIT_COMMIT_HASH=${GIT_COMMIT_HASH} \
-    GIT_COMMIT_DATE=${GIT_COMMIT_DATE} \
     OCTANE_SERVER=frankenphp \
     TZ=${TZ} \
     LANG=C.UTF-8 \
@@ -100,6 +104,10 @@ ENV XDG_CONFIG_HOME=${ROOT}/.config XDG_DATA_HOME=${ROOT}/.data
 WORKDIR ${ROOT}
 
 SHELL ["/bin/sh", "-eou", "pipefail", "-c"]
+
+# Fail the build when the base image resolves to a PHP patch level older than
+# the 2026-11-19 security release, instead of shipping it silently.
+RUN php -r 'exit(version_compare(PHP_VERSION, "8.4.28", ">=") ? 0 : 1);'
 
 RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
     && echo ${TZ} > /etc/timezone
@@ -224,6 +232,18 @@ COPY --link --chown=${USER_ID}:${GROUP_ID} --from=assets /app/public/build ./pub
 RUN mkdir -p ${ROOT}/.config ${ROOT}/.data \
     && chown ${USER_ID}:${GROUP_ID} ${ROOT} \
     && chown -R ${USER_ID}:${GROUP_ID} storage bootstrap/cache public .config .data
+
+# Commit metadata goes into its own layer at the very end on purpose. build-app.sh
+# passes a new GIT_COMMIT_HASH/GIT_COMMIT_DATE on every deploy, and BuildKit keys
+# every instruction after a declared ARG on that value even when the instruction
+# does not reference it: declared at the top of this stage (where it used to be)
+# it changed the first layer, so apk, install-php-extensions, composer install,
+# bun install and the asset build all re-ran on every single deploy.
+ARG GIT_COMMIT_HASH=unknown
+ARG GIT_COMMIT_DATE=unknown
+
+ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH} \
+    GIT_COMMIT_DATE=${GIT_COMMIT_DATE}
 
 USER ${USER}
 
